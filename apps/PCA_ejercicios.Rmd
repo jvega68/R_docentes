@@ -1,0 +1,156 @@
+---
+title: "Ejercicios de Componentes Principales"
+author: "Lab: Componentes principales."
+date: "19/3/2022"
+output: html_document
+---
+
+```{=html}
+<style type="text/css">
+.main-container {
+  max-width: 1500px;
+  margin-left: auto;
+  margin-right: auto;
+}
+</style>
+```
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, comment = NULL)
+```
+
+# Ejercicios de práctica de componentes principales
+
+### 1. Las tasas semanales de interés de 5 acciones listadas en el NY Stock Exchange están dadas a continuación:
+
+```{r}
+X <- read.delim("https://raw.githubusercontent.com/jvega68/EA3/master/datos/J%26W/T8-4.DAT",
+                sep = "", header = F)
+names(X) <- c("JPMorgan","Citibank","WellsFargo","Shell","Exxon")
+str(X)
+```
+
+a.  Construir la matriz de covarianza muestral **S** y encontrar las componentes principales muestrales.
+
+```{r}
+(S <- var(X))
+eigen(S)
+y <- as.matrix(X) %*% eigen(S)$vectors # scores
+apply(y,2,var)  # reproduce los eigenvalores
+
+# Usando las funciones definidas
+z <- princomp(X)
+summary(z, loadings=T)
+```
+
+b.  Determinar la proporción de la varianza total explicada por las primeras tres componentes principales.
+
+```{r}
+screeplot(z)
+```
+
+c.  Con los resultados de la pregunta anterior, ¿consideran que los datos se pueden resumir bien en menos de 5 dimensiones? Explicar.
+
+
+### 2. Considerar los datos siguientes que corresponden a datos del censo de ciertas áreas geográficas (parecidas a las agebs). Las variables son:
+
+  - `V1` = Población total (en miles)
+  - `V2` = % de personas con grado profesional
+  - `V3` = % de pesonas empleadas de 16 años o más
+  - `V4` = % de empleados gubernamentales 
+  - `V5` = mediana del valor de hogar, en cientos de miles de dólares.
+
+```{r}
+X <- read.delim("https://raw.githubusercontent.com/jvega68/EA3/master/datos/J%26W/T8-5.DAT",
+                sep = "", header = F)
+```
+
+a.  Construir la matriz de covarianzas muestral $S$,cuando la variable $V_5$ es registrada en diez miles de dólares.
+
+```{r}
+S1 <- cov(X) # con los datos originales
+X$V5 <- 10*X$V5
+S2 <- cov(X)
+```
+
+b.  Obtener los pares de valores y vectores propios y las primeras dos componentes principales para la matriz de covarianzas del inciso (a).
+
+```{r}
+z <- princomp(X, cor = T)
+summary(z, loadings = T)
+```
+
+c.  Calcular la proporción de varianza total explicada por las dos primeras componentes principales obtenidas en la parte (b). Calcular también los coeficientes de correlación $r(V_i,Y_k)$, entre las variables originales y las componentes principales.
+
+```{r}
+cor(scale(X),z$scores)
+```
+
+### 3. Considerar los siguientes datos sobre contaminación. Tu trabajo es resumir estos datos en menos de $p=7$ dimensiones si es posible. Conducir un análisis de componentes principales de los datos usando tanto la matriz de varianzas y covarianzas **S** y la matriz de correlaciones **R**.
+
+```{r}
+X <- read.delim("https://raw.githubusercontent.com/jvega68/EA3/master/datos/J%26W/T1-5.DAT",
+                sep = "", header = F)
+names(X) <- c("viento", "rad_sol","CO","NO","NO2","O3", "HC")
+str(X)
+
+z1 <- princomp(X)
+z2 <- princomp(X, cor=T)
+
+summary(z1)
+summary(z2)
+z1$loadings
+z2$loadings
+```
+
+-   ¿Qué se puede aprender de este ejercicio?
+-   ¿Hay alguna diferencia en qué matriz se escoja para el análisis?
+-   ¿Pueden los datos resumirse en menos de tres o menos dimensiones?
+-   ¿Se podrían interpretar las componentes principales?
+
+### 4. Los datos de los records del track atlético internacional se encuentran en los datos a continuación:
+
+```{r}
+X <- read.delim("https://raw.githubusercontent.com/jvega68/EA3/master/datos/J%26W/T1-9.DAT",
+                sep = "", header = F)
+names(X) <- c("s100m","s200m","s400m","m800m","m1500m","m3000m","mMaraton","pais")
+str(X)
+rownames(X) <-X$pais
+X$pais <- NULL
+```
+
+a.  Obtener la matriz de correlación R para estos datos y determinar sus valores y vectores propios
+```{r}
+library(corrplot)
+corrplot(cor(X), method = "ellipse")
+```
+
+b.  Determinar las primeras dos componentes principales para las variables estandarizadas. Preparar una tabla mostrando las correlaciones de las variables estandarizadas con las componentes y el porcentaje acumulado de la varianza total (estandarizada) explicada por las dos componentes.
+
+```{r}
+z <- prcomp(X, scale = T)
+scores <- predict(z,X)
+```
+
+c.  Interpretar las dos primeras componente obtenidas en (b).
+d.  Ordenar a las naciones basados en su score en la primera componente principal. ¿Este orden corresponde a su noción intuitiva de excelencia atlética para los diferentes países?
+e.  Convertir los registros a velocidades medidas en metros por segundo. Noten que los registros para 800m, 1500m, 3000m y los datos de maratón están en minutos. El maraton es 26.2 millas o 42,195 metros. Realizar un análisis de componentes principales usando la matriz de covarianzas **S** de los datos de velocidad. Comparar los resultados con los dados en los primeros incisos del ejercicio. ¿Difiere la interpretación de los resultados? Si las naciones son ordenadas sobre la base de su score en la primera componente principal, los ordenamientos subsecuentes difieren de los previos? ¿Qué análisis prefieren y porqué?
+
+
+### Ejercicio de estimación de la distribución muestral de los valores propios
+
+Podemos usar la técnica de bootstrap para encontrar intervalos de confianza para los valores propios estimados
+
+```{r, fig.height= 7}
+pca <- function(x){eigen(cor(x))$values}
+B <- 3000  # número de simulaciones bootstrap
+n <- nrow(X) # número de observaciones en la muestra
+
+lambdas <- matrix(0,nrow = B,ncol = 7)
+for (i in 1:B){
+  ind <- sample(1:n, replace = T)
+  lambdas[i,] <- pca(X[ind,])
+}
+par(mfrow=c(4,2))
+for(i in 1:7)hist(lambdas[,i], breaks = 100)
+```
+

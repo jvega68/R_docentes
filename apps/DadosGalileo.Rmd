@@ -1,0 +1,63 @@
+---
+title: "Dados de Galileo"
+author: "Jorge de la Vega"
+date: "23/08/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, comment = NULL)
+```
+
+## Estimando probabilidades vía simulación
+El problema de los dados de Galileo visto la semana pasada considera el lanzamiento de tres dados, y se solicita compararlas vía simulación.
+
+El problema teórico no es difícil. Si consideramos las ternas $(X_1,X_2,X_3)$, cada $X_i$ representando un dado, entonces podemos calcular fácilmente las probabilidades para la suma $Y=X_1+X_2+X_3$. 
+
+El número de posibles valores de $Y$ tiene rango $\{3,\ldots,18\}$ Hay $6^3=216$ posibles ternas diferentes, de las cuales 25 suman 9 y 27 suman 10. Entonces si $p_9=P(Y=9)$ y $p_{10}=P(Y=10)$, tenemos 
+
+```{r}
+Omega <- expand.grid(dado1 = 1:6, dado2 = 1:6, dado3 = 1:6)
+head(Omega)  # muestra los primeros 6 resultados de Omega. 
+which(apply(Omega,1,sum) == 9)  # ¿Cuáles casos suman 9?
+which(apply(Omega,1,sum) == 10) # ¿Cuáles casos suman 10?
+```
+
+
+```{r}
+p9 <- (length(which(apply(Omega,1,sum) == 9))/nrow(Omega))
+p10 <- (length(which(apply(Omega,1,sum) == 10))/nrow(Omega))
+```
+
+Claramente, $p_{10} = 27/216$ es mayor que $p_9 = 25/216$. ¿Se corrobora el resultado con simulación?
+
+La siguiente función genera una muestra de tamaño $n$ de la suma de los tres dados.
+
+```{r}
+sumatresdados <- function(n,semilla = 1){
+     set.seed = semilla
+     x <- numeric(n)
+     probas <- c(1/5,1/6,1/6,1/6,1/6,2/15) #dado desbalanceado
+     for(i in 1:n)
+        x[i] <- sum(sample(1:6,3,replace = T,prob = probas))
+     x
+}
+```
+
+A partir de estas muestras, podemos calcular las trayectorias del estimador $\hat{p}_k(n) = \frac{\sum_{i=1}^nI(Y_i=k)}{n}$. Por ejemplo, con $n=10,000$ lanzamientos
+
+```{r}
+n <- 10000
+phat9 <- cumsum(sumatresdados(n) == 9)/(1:n)
+phat10 <- cumsum(sumatresdados(n) == 10)/(1:n)
+
+# Grafica los resultados
+plot(phat9,type = "l", col = "blue", ylim = c(0.05, 0.2), ylab = "probs", xlab="n",
+     main="Simulación para estimar probabilidades en lanzamiento de tres dados")
+lines(phat10, col = "green")
+abline(h=c(p9,p10), col = c("blue","green"),lwd=2)
+legend("topright",legend = c(expression(p[9]),expression(p[10])),
+       col = c("blue","green"),lwd = c(2,2))
+```
+
+En este caso, como en el caso de las agujas de Buffon, podemos calcular intervalos de confianza para nuestro estimador, ya que estamos estimando proporciones. Podemos definir la variable $X_i(n)=$ número de casos en $n$ lanzamientos que suman $i$. Entonces $X_i(n) \sim Bin(n,p_i)$, donde $p_i$ es la probabilidad que corresponde a una suma de $i$. El resto del ejercicio es idéntico al que ya vimos. 

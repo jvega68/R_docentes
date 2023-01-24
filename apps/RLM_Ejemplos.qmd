@@ -1,0 +1,239 @@
+---
+title: "Ejemplos RLM"
+author: "Jorge de la Vega"
+date: "01/04/22"
+toc: true
+format: 
+  html: 
+    code-line-numbers: true
+    page-layout: full
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+#| label: setup
+#| include: false
+
+knitr::opts_chunk$set(echo = TRUE, comment = NULL, fig.align = "center", fig.height = 6, fig.width = 8)
+options(width=140)
+options(scipen = 5) #scipen es para notación científica
+library(corrplot)
+library(MASS)
+library(tidyverse)
+```
+
+## Ejemplos de estimación en RLM
+
+Algunos paquetes en R que se especializan en temas de regresión:
+
+-   `car`
+-   `alr4`
+
+### Ejemplo 1: Prestigio ocupacional
+
+El conjunto de datos `Prestige` en el paquete `car` contiene datos sobre 102 ocupaciones con los siguientes datos asociados:
+
+-   `education`: número promedio de años de educación de acuerdo al Censo de Canadá.
+-   `income`: ingreso promedio de las ocupaciones, en CAD.
+-   `women`: porcentaje de mujeres en esa profesión en el Censo que eran mujeres
+-   `prestige`: La calificación promedio del prestigio de la ocupación obtenida en base a una encuesta
+-   `census`: Código de la ocupación en la clasificación estándar del Censo de Canadá.
+-   `type`: Clasificación: profesional y gerencial (`prof`), cuello blanco (`wc`), cuello azul (`bc`) o faltante (`NA`).
+
+```{r}
+library(car)
+data("Prestige")
+head(Prestige)
+summary(Prestige)
+```
+
+Primero nos damos una idea de los datos a través de considerar. Aquí utilizaré algunas funciones del paquete `car (companion to applied regression (Fox & Weisberg)` que mejoran un poco las gráficas tradicionales
+
+```{r}
+scatterplotMatrix(~ prestige + income + education + women, data = Prestige)
+```
+
+También se puede ver considerando subpoblaciones (por ejemplo, de acuerdo al tipo de ocupación)
+
+```{r}
+scatterplotMatrix(~ prestige + income + education + women| type, data =Prestige)
+```
+
+Vemos que el ingreso tiene una distribución con colas largas. Se sugiere considerar una transformación logarítmica para tratar de normalizar los datos.
+
+```{r}
+# realiza la comparación de los histogramas
+Prestige$log2income <- log2(Prestige$income)
+scatterplotMatrix(~ prestige + log2income + education + women, data =Prestige)
+```
+
+#### Estimación
+
+```{r}
+(mod1 <- lm(prestige ~ education + log2income + women, data = Prestige))  # Información de los coeficientes estimados
+summary(mod1)   # Información adicional para inferencia
+```
+
+La interpretación de los coeficientes está en función de los otros regresores en el modelo. Por ejemplo:
+
+-   $\beta_1 = 3.7305$ se interpreta como, dados valores fijos de ingreso y proporción de mujeres, el incremento promedio en el prestigio de la profesión por un año adicional de educación es de 3.7 unidades de prestigio.
+-   $\beta_2 = 9.3147$ el incremento del $\log_2$ del ingreso en una unidad corresponde a duplicar el ingreso, así que duplicar el ingreso,manteniendo los otros predictores constantes, se asocia con un incremento en promedio de cerca de 9.3 unidades de prestigio.
+
+### Ejemplo 2: Modelo de Análisis de varianza de una vía (One way ANOVA)
+
+El modelo lineal más simple con factores es el modelo de ANOVA de una vía: contiene una variable factor y no tiene predictores numéricos.
+
+En un experimento, se consideraron $n = 66$ infantes que fueron asignados aleatoriamente a uno de tres posibles grupos experimentales para enseñar lectura:
+
+-   El grupo con el método Basal (es el método estándar)
+-   El grupo con el método DTRA (nuevo)
+-   El grupo con el método Strat (nuevo)
+
+Los investigadores consideraron dos pruebas previas al método y tres pruebas posteriores a la aplicación del método. Nos concentramos en la tercera prueba en este ejemplo.
+
+```{r}
+data("Baumann")
+some(Baumann)  # toma una muestra de observaciones en el archivo (10 por default)
+```
+
+Los investigadores están interesados en saber si los nuevos métodos producen mejores resultados que el método estándar y si los nuevos métodos difieren en efectividad.
+
+```{r}
+boxplot(post.test.3 ~ group, data = Baumann, xlab = "Grupo", ylab = "Score de lectura")
+```
+
+Este modelo se basa prácticamente en comparar las medias de cada grupo. Lo podemos hacer vía regresión
+
+```{r}
+(mod2 <- lm(post.test.3 ~ group, data = Baumann))  # la variable group es un factor, y así R toma la matriz correcta
+summary(mod2)
+```
+
+Podemos ver cuál es la matriz ${\bf X}$ que identifica el modelo considerado:
+
+```{r}
+X <- model.matrix(mod2)
+```
+
+### Ejemplo 3: Modelo con predictores numéricos, factores e interacciones (Modelo ANCOVA)
+
+Los datos en `salary` del paquete `alr4` fueron obtenidos para probar en una Corte que existía discriminación salarial por sexo entre los profesores de una Universidad americana. La variable de respuesta es `salary` y hay tres predictores: `rank` con tres niveles o categorías para el tipo de profesor (Asistente, Asociado o Professor), `degree` con dos niveles para el grado académico del profesor, `sex` con dos niveles y `ysdeg` que son los años transcurridos desde que el profeso se graduó.
+
+```{r}
+library(alr4)
+data(salary)
+str(salary)
+```
+
+El objetivo es entender cuál es la dependencia del salario al rango académico y la experiencia (medida por los años desde graduación) del profesor.
+
+```{r}
+with(salary, plot(ysdeg, salary, col = rank, pch = as.numeric(sex)))
+with(salary, legend("topleft", 
+                    legend = c(levels(rank), levels(sex)), 
+                    col = c("black","red","green","black","black"),
+                    pch = c(16,16,16,1,2)))
+```
+
+Sin considerar el sexo, hay cuatro casos a considerar:
+
+1.  Un modelo de regresión lineal simple para todos los rangos (básicamente ignorando el rango)
+2.  Modelo de líneas paralelas (misma pendiente, diferentes ordenadas)
+3.  Modelo de líneas con una ordenada al origen común (pendientes diferentes, misma interceptada)
+4.  Modelo de líneas diferentes para cada rango (una línea por categoría)
+
+Cada uno de estos modelos se puede visualizar:
+
+El primer modelo: una sola línea
+
+```{r}
+(m1 <- lm(salary ~ ysdeg, data = salary))
+with(salary, plot(ysdeg, salary, col = rank, main = "m1"))
+abline(m1)
+```
+
+Modelo de líneas paralelas
+
+```{r}
+(m2 <- lm(salary ~ ysdeg + rank, data = salary))
+summary(m2)
+with(salary, plot(ysdeg, salary, col = rank, main = "m2"))
+abline(a = m2$coef[1], b = m2$coef[2])
+abline(a = m2$coef[1] + m2$coef[3], b = m2$coef[2], col = 2)
+abline(a = m2$coef[1] + m2$coef[4], b = m2$coef[2], col = 3)
+```
+
+Modelo de líneas con intercepción común
+
+```{r}
+(m3 <- lm(salary ~ ysdeg + ysdeg:rank, data=salary))
+with(salary, plot(ysdeg, salary, col = rank, main = "m3"))
+abline(a = m3$coef[1], b = m3$coef["ysdeg"])
+abline(a = m3$coef[1], b = m3$coef["ysdeg"] + m3$coef["ysdeg:rankAssoc"], col = 2)
+abline(a = m3$coef[1], b = m3$coef["ysdeg"] + m3$coef["ysdeg:rankProf"], col = 3)
+```
+
+Modelo de líneas separadas. Este es el modelo más general
+
+```{r}
+(m4 <- lm(salary ~ ysdeg*rank, data=salary))
+with(salary,plot(ysdeg,salary,col=rank,main="m4"))
+abline(a = m4$coef[1], b = m4$coef["ysdeg"])
+abline(a = m4$coef[1] + m4$coef["rankAssoc"], b = m4$coef["ysdeg"] + m4$coef["ysdeg:rankAssoc"], col = 2)
+abline(a = m3$coef[1] + m4$coef["rankAssoc"], b = m4$coef["ysdeg"] + m4$coef["ysdeg:rankProf"], col = 3)
+```
+
+Podemos ver que los modelos 1,2,3 son *submodelos* del caso 4. El caso 1 es un submodelo de los casos 2 y 3 y los casos 2 y 3 no están relacionados.
+
+
+## Inferencia en RLM
+
+Para ver los diferentes intervalos de confianza que se pueden obtener para los parámetros, retomamos el ejemplo 1:
+
+La matriz de varianzas y covarianzas del estimador se puede obtener con la función `vcov`:
+
+```{r}
+vcov(mod1)
+```
+
+Tomamos de esta matriz lo que necesitemos para los diferentes intervalos
+
+### Región de confianza de $\beta_1$y $\beta_2$
+
+```{r}
+library(ellipse)
+plot(ellipse(mod1, which = c(2,3), level = 0.95), type = "l",
+     main = "Región de confianza para b2 y b3")
+points(mod1$coef[2], mod1$coef[3], pch = 16, col = "red", cex = 2)
+```
+
+
+### Intervalos marginales al 95% para cada $\beta_i$
+
+```{r}
+n <- nrow(Prestige)
+alfa <- 0.05
+k <- 4
+p <- 3
+interv_marg <- matrix(numeric(), nrow = k, ncol = 2)  # para guardar los números
+
+for(i in 1:k) interv_marg[i,] <- mod1$coef[i] + c(-1,1)*pt(n-k,alfa/2, lower.tail = F)*sqrt(diag(vcov(mod1))[i])
+# Crea una tabla con los resultados
+a <- cbind(mod1$coef, interv_marg)  # incluye el vector de valores estimados
+colnames(a) <- c("betahat","lim_inf","lim_sup")
+a
+```
+
+### Intervalos simultáneos
+
+```{r}
+interv_simul <- matrix(numeric(), nrow = k, ncol =2)
+for(i in 1:k) interv_simul[i,] <- mod1$coef[i] + c(-1,1)*sqrt(pf(k,n-k,alfa, lower.tail = F))*sqrt(diag(vcov(mod1))[i])
+b <- cbind(mod1$coef, interv_simul)  # incluye el vector de valores estimados
+colnames(b) <- c("betahat","lim_inf","lim_sup")
+b
+
+```
+
+Los intervalos simultáneos siempre son más anchos, porque toman en cuenta la variabilidad conjunta. 
