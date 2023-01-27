@@ -1,0 +1,363 @@
+---
+title: "R Módulo III: Temas de cálculo"
+author: "MIDE"
+date: "22/10/2022"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, comment = NULL)
+```
+
+# Algunos temas de Cálculo en `R`. {.tabset}
+
+En esta sesión haremos algunos ejercicios de temas vistos en el modulo III sobre temas de cálculo.
+
+## Sucesiones de funciones y series
+
+Vamos a crear un ejemplo de una sucesión de funciones para ver su comportamiento. Podemos tomar cualquier función, por ejemplo: $f(x) = sen(x)$. Podemos crear una sucesión de funciones a partir de un valor inicial $a_0 = 1$ y tomar $a_n = sen(a_{n-1})$. ¿Cómo se comporta esta sucesión? ¿Converge? Este es un ejemplo de una sucesión recursiva.
+
+```{r}
+n <- 100000 # número de observaciones a generar
+a <- 1  # valor inicial
+for(i in 2:n){
+  a[i] <- sin(a[i-1])
+}
+# podemos graficar el índice y el valor 
+plot(1:n, a, pch = 19, cex = 0.5, ylim = c(-0.1,1))
+abline(h = 0, col = "blue")
+```
+
+Podemos ver que la función se va acercando al 0.
+
+Otro ejemplo. Tomemos $a_n = \sqrt{n+1}-\sqrt{n}$. ¿converge?
+
+```{r}
+n <- 10000
+a <- numeric(n) #crea el vector donde se guardarán los valores
+for(i in 1:n) a[i] <- sqrt(i+1)-sqrt(i)
+plot(1:n, a, col = "red", pch = 19, cex = 0.5)
+abline(h=0)
+```
+
+Y podemos crear ahora la serie y graficarla. La función `cumsum` genera un vector con las sumas sucesivas
+
+```{r}
+plot(cumsum(a), cex = 0.5, pch = 19)
+```
+
+Podemos jugar con muchas sucesiones. incluso algunas más complejas, que cambian de signo. Por ejemplo:
+
+```{r}
+n <- 1:100
+plot(n, 1 + (-1)^n*(1/n), pch = 19, cex = 0.5) #esta serie converge a 1
+abline(h=1)
+
+n <- 1000
+a <- numeric(n) #crea el vector donde se guardarán los valores
+for(i in 1:n) a[i] <- cos(1+(-1)^i*(1/n))
+plot(1:n, a, col = "violet", pch = 19, cex = 0.5)
+```
+
+La sucesión anterior no converge. ¿La serie converge? No:
+
+```{r}
+plot(cumsum(a))
+```
+
+### Fractales
+
+Vamos a aplicar el principio de las sucesiones para crear un fractal. El conjunto de Mandelbrot toma un número complejo $z = a+bi$, donde $a$ y $b$ son números reales y el símbolo $i$ es el número imaginario que se define con la condición de que $i^2 = -1$.
+
+Los números complejos se pueden representar en el plano cartesiano como los puntos o vectores $(a,b)$. Definimos el módulo de un número complejo $z$ como la norma del vector $(a,b)$.
+
+Se crea un proceso recursivo como los que hemos visto arriba, de la siguiente manera:
+
+1.  Tomamos el primer número complejo siendo el orígen $z=0$.
+2.  Se toma un número complejo $c$ cualquiera. A partir de este número se toma la serie de valores $z_{n+1} = z_n^p + c$. Si la sucesión es acotada (el módulo de los valores $z$ es acotado), entonces el valor $c$ pertenece al conjunto de Mandelbrot, y si no, se excluye.
+
+Por ejemplo, tomando $c=1$ se genera la sucesión de valores
+
+```{r}
+z <- 0
+c <- -1
+for(i in 2:10)z[i] <- z[i-1]^2 + c
+z
+```
+
+entonces $c=1$ no está en el conjunto de Mandelbrot. Probar ahora con -1
+
+Podemos hacer un programa que evalúe múltiples valores de $c$ de la siguiente manera.
+
+```{r}
+mandelbrot <- function(p = 2, # exponente de la función
+    xmin = -2,  # valor min de x
+    xmax =  2,  # valor max de y
+    ymin = -2,  # valor min de y
+    ymax =  2,  # valor max de y
+    n = 100,    # número de iteraciones a realizar
+    cols = colorRampPalette(c("black","cyan","cyan3","red","navy"))(11)
+    ) 
+{
+    # variables
+    x <- seq(xmin, xmax, length.out = 500)
+    y <- seq(ymin, ymax, length.out = 500)
+    c <- outer(x, y*1i,FUN = "+")
+    z <- matrix(0, nrow = length(x), ncol = length(y))
+    k <- matrix(0, nrow = length(x), ncol = length(y))
+    
+    for (rep in 1:n) { 
+        index <- which(Mod(z) < 2)
+        z[index] <- z[index]^p + c[index]
+        k[index] <- k[index] + 1
+    }
+    image(x, y, k, col = cols, xlab = "Re(c)", ylab = "Im(c)",
+          main = "Conjunto de Mandelbrot")
+}
+mandelbrot(p=2, xmax = 0.5,ymin = -1, ymax = 1)
+```
+
+Vamos a considerar una caminata aleatoria (movimiento browniano)
+
+```{r}
+set.seed(5)
+x <- rnorm(100000)
+par(mfrow=c(1,2))
+plot(cumsum(x), type ="l",ylim = c(-200,200))
+plot(cumsum(x), xlim = c(4000,60000),type = "l", ylim=c(-200,200))
+```
+
+## Continuidad
+
+Es difícil ver el tema de continuidad usando un programa. La continuidad se entiende más como un concepto matemático, por lo que no le dedicaremos mucho tiempo aquí.
+
+## Optimización numérica.
+
+En muchas áreas de estadística y de matemáticas aplicadas se tiene que resolver el siguiente problema: dada una función $f$, qué valor de $x$ hace la función tan grande (chica) como sea posible?
+
+Basta que nos concentremos en el problema de encontrar mínimos. Si queremos maximizar una función $f(x)$, basta con cambiar el signo y minimizar $-f(x)$.
+
+En clase con Ruslán vieron que el uso de derivadas y álgebra con frecuencia sirven para hallar soluciones, pero no siempre es posible y tenemos que recurrir a la computadora.
+
+### Método de búsqueda de la sección dorada
+
+El método de búsqueda de la sección dorada es una forma simple de minimizar una función que tiene un valor mínimo en el intervalo $[a,b]$. Este método aplica la continuidad de la función.
+
+Por ejemplo, consideren minimizar la función $f(x) = |x-3.5| + (x-2)^2$ en el intervalo $[0,5]$. Vemos una gráfica de esta función:
+
+```{r}
+f <- function(x){
+     abs(x-3.5) + (x-2)^2
+}
+curve(f, from = 0, to = 5, n = 500, lwd=2)
+```
+
+La función no es diferenciable en $x=3.5$ porque tiene un pico. El método de la sección dorada es un método iterativo que tiene el siguiente procedimiento:
+
+1.  Comienza con el intervalo $[a,b]$, que se sabe que contiene el mínimo.
+2.  De manera repetida, lo vamos encogiendo, obteniendo intervalos más y más pequeños $[a',b']$ que contienen el valor de $x$ con el mínimo.
+3.  Detenerse cuando $b'-a'$ es suficientemente pequeño, es decir, menor a un valor de tolerancia.
+
+Cuando la búsqueda se detiene, el punto medio del intervalo final, con un error máximo de $(b'-a')/2$
+
+El tema es saber cómo ir reduciendo los intervalos. Para eso se usa el número que se conoce como razón dorada:
+
+$$ \phi = \frac{1+ \sqrt{5}}{2} $$
+
+Este número tiene propiedades muy interesantes. Por ejemplo, $\phi^2 = \phi+1$, $\phi-1 = 1/\phi$, $1/\phi^2 = 1-1/\phi$ entre otras.
+
+```{r}
+dorada <- function(f, a, b, tol = 0.000000001){
+  rd <- (sqrt(5)+1)/2
+  x1 <- b - (b-a)/rd
+  x2 <- a + (b-a)/rd
+  f1 <- f(x1)
+  f2 <- f(x2)
+  while(abs(b-a) > tol){
+    if (f2 > f1){
+      b <- x2
+      x2 <- x1
+      f2 <- f1
+      x1 <- b - (b-a)/rd
+      f1 <- f(x1)
+    } else {
+      a <- x1
+      x1 <- x2 
+      f1 <- f2
+      x2 <- a + (b-a)/rd
+      f2 <- f(x2)
+    }
+  }
+  return((a+b)/2)
+}
+```
+
+Podemos evaluar la función:
+
+```{r}
+dorada(f, 1, 10)
+```
+
+Otros ejemplos:
+
+Apliquemos el método a la función $f(x)=|x-3.5| + |x-2| + |x-1|$
+
+```{r}
+f1 <- function(x){abs(x-3.5) + abs(x-2) + abs(x-1)}
+curve(f1, 0, 5)
+dorada(f1, 0, 5)
+```
+
+### Método de Newton-Raphson
+
+Queremos encontrar el mínimo $x^*$ de una función $f(x)$ en el intervalo $[a,b]$. Considerando que el mínimo no es ni $a$ ni $b$, $x^*$ satisface $f'(x)=0$. Además, para que sea un mínimo se requiere además que $f''(x^*)>0$.
+
+Una aplicación de la expansión en series de Taylor es la siguiente: $f'(x) \approx f'(x_0) + (x-x_0)f''(x_0)$. Encontrar una raíz del lado derecho nos da una solución aproximada para $f'(x^*)=0$. La ecuación nos da 0 implica que $x = x_0-\frac{f'(x_0)}{f''(x_0)}$.
+
+Se puede aplicar esta idea con un proceso iterativo que genera una sucesión $x_0,x_1,x_2,\ldots, x_{n+1}$ de tal manera que $x_{n+1} = x_n - \frac{f'(x_n)}{f''(x_n)}$. La iteración se detiene cuando $f'(x_n)$ es muy cercana a 0, o en símbolos $|f'(x_n)| < \epsilon$.
+
+Este método, junto con otros como el de Nelder-Mead, está ya programado en R en funciones como `optimize` y `optim` que también incluyen optimización de funciones en varias dimensiones. Veamos cómo se aplican estas funciones en la práctica.
+
+1.  Encontrar el mínimo de la función de dos variables $f(x,y) = (x-1) + 3.2/y + 3\log(\Gamma(x)) + 3x\log(y)$ donde $\Gamma(x)$ es la función gama que generaliza a la función factorial, que tiene fórmula $\Gamma(x)=\int_0^\infty u^{x-1}e^{-u}du$.
+
+```{r}
+# Definimos la función:
+f2 <- function(x,y){(x-1) + 3.2/y + 3*log(gamma(x)) + 3*x*log(y)}
+# Hacemos una gráfica de la función para ganar información
+x <- y <- seq(0.01, 20, length = 20)
+z <- outer(x, y, f2)
+persp(x, y, z, theta = 60, phi = 15, shade = 0.6, col = "yellow")
+
+# Otra gráfica con curvas de nivel 
+x <- y <- seq(0.01, 50, length = 50)
+z <- outer(x, y, f2)
+contour(x,y,z)
+
+# Encontremos el óptimo de la función en esta región Para la función tenemos que darle los parámetros de otra forma
+f3 <- function(z){
+  x <- z[1]
+  y <- z[2]
+  (x-1) + 3.2/y + 3*log(gamma(x)) + 3*x*log(y) 
+}
+optim(c(1,1), f3)
+```
+
+2.  Encuentra el valor óptimo de la función $f(x,y) = \frac{1}{2\pi}e^{-0.5[(x-3)^2 + (y+6)^2]}$. ¿Es un mínimo o un máximo?
+
+```{r}
+f3 <- function(x,y){
+  1/(2*pi)*exp(-0.5*((x-3)^2 + (y+6)^2))
+}
+# Graficamos la función
+x <- seq(0, 6, length = 50)
+y <- seq(-10,0, length = 50)
+z <- outer(x, y, f3)
+
+persp(x, y, z, col = "green", theta = 45, phi = 30)
+contour(x, y, z, nlevels = 20)
+
+# Otra forma de obtener una gráfica en movimiento
+library(rgl)
+persp3d(x, y, z, col = "pink")
+```
+
+De la gráfica podemos ver que la función tiene un máximo. Para optimizar, recuerden que tenemos que cambiar el signo porque la función encuentra mínimos.
+
+```{r}
+optim(c(1,1),function(z)(-f3(z[1],z[2])), control=list(maxit=500))
+```
+
+### Raíces o ceros de funciones.
+
+A veces es importante encontrar dónde una función cruza el eje horizontal, como en las raíces de los polinomios, o funciones que se requieren optimizar. Por ejemplo consideren $f(x) = (0.3x-4)^4+sen(x)*(4x-2)$. ¿En qué puntos cruza esta función el origen?
+
+```{r}
+g <- function(x)(0.3*x-4)^4 + sin(x)*(4*x-2)
+curve(g,from = 2, to = 20)
+abline(h=0)
+```
+
+Podemos usar la función de R `uniroot`. Podemos encontrar el valor de la raíz en diferentes rangos. Esta función requiere que la función cambie de signo en el intervalo dado, y sólo puede encontrar una raíz a la vez
+
+```{r}
+uniroot(g,interval = c(5,10))
+uniroot(g,interval = c(10,15))
+uniroot(g,interval = c(17,20))
+```
+
+El paquete rootSolve encuentra todas las raíces en un intervalo dado
+
+```{r}
+library(rootSolve)
+uniroot.all(g,c(0,20))
+```
+
+Para polinomios en particular, se tiene la función `polyroot` en la que hay que dar los coeficientes de los polinomios. Por ejemplo, para el polinomio $p(x) = -3 + 2x + 4.56x^2+6x^3+8x^4$, usamos
+
+```{r}
+g <- function(x){-3+2*x+4.56*x^2+6*x^3+ 8*x^4}
+curve(g(x),from=-2,to=2)
+abline(h=0)
+polyroot(c(-3, 2, 4.56, 6, 8)) # solamente se dan los coeficientes del polinomio en órden creciente.
+```
+
+Si el polinomio no cruza el eje x, entonces lo que nos devuelve la función son las soluciones complejas.
+
+## Derivadas
+
+R puede hacer algo de derivadas simbólicas, aunque posiblemente Mathematica sea un mejor programa para eso. Se puede usar la función `D()` para calcular la derivada de una función. El argumento de esta función es un objeto que representa a una expresión matemática.
+
+```{r}
+f <- expression(x^3 + 4*x^3 - 2*x + 5)
+# Calculamos la primera derivada con respecto a x
+(df <- D(f, 'x')) 
+# Segunda derivada
+(d2f <- D(df, 'x'))
+x <- 1:5  # damos valores para x
+eval(f)
+eval(df)
+eval(d2f)
+```
+
+POdemos graficar la función así como su derivada.
+
+```{r}
+x <- seq(-5, 5, by = 0.01)
+plot(x, eval(f), type = "l", lwd=3)
+abline(h=0)
+lines(x,eval(df), col = "red")
+```
+
+Otro ejemplo con función de dos variables:
+
+```{r}
+g <- expression(sin(cos(x+y^2))) 
+D(g, 'x')
+D(g, 'y')
+D(D(g,'y'),'x')
+y <- 1 # damos un valor de y para poder evaluar la función
+x <- seq(-10, 10,length = 100)  # valores de x en donde evaluar la función
+plot(x, eval(D(g, 'x')), type = "l")
+```
+
+## Integración numérica
+
+A diferencia de derivadas, no podemos hacer integración simbólica, pero podemos calcular el valor de una integral con la función `integrate`.
+
+```{r}
+f <- function(x) x^2+3*x
+integrate(f, lower = 0,upper = 1)
+integrate(f, lower=-3, upper = 1)
+```
+
+También podemos calcular integrales múltiples con el auxilio del paquete `cubature`. Por ejemplo, queremos calcular la integral siguiente:
+
+$$ \int_0^1\int_0^2\int_0^3 \frac{2}{3}(\sin(x) +y-z)dx\,dy\,dz $$
+
+```{r}
+library(cubature)
+f <- function(x) (2/3)*(sin(x[1]) + x[2] - x[3])
+adaptIntegrate(f, lowerLimit = c(0, 0, 0), upperLimit = c(1, 2, 3))
+```

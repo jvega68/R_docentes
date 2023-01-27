@@ -1,0 +1,559 @@
+---
+title: "R para el modulo 2: Álgebra Lineal"
+author: "Jorge de la Vega, MIDE"
+date: "24/09/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, 
+                      comment = NA)
+options(scipen = 5)
+```
+
+# Temas a revisar
+
+Los temas que revisaremos en la sesión de hoy son los siguientes:
+
+-   Vectores
+-   Matrices y sus operaciones
+-   Solución de sistemas de ecuaciones
+-   Ejemplos de aplicación: Cadenas de Markov
+-   Ejemplos de aplicación: Portfolios de inversión
+
+Usaremos los siguientes paquetes:
+
+-   `matlib` para algunas operaciones matriciales (resolución de ecuaciones)
+-   `igraph` un paquete para dibujar gráficas (vértices y nodos)
+-   `markovchain` cálculos y gráficas asociadas con Cadenas de Markov
+
+Los paquetes se cargarán en las secciones que se requieran, sólo para enfatizar la parte en donde se utiliza su funcionalidad.
+
+## Vectores en R
+
+Cuando comenzamos con el curso de R, vimos que se pueden definir vectores como en el ejemplo siguiente
+
+```{r}
+u <- 1:6 # números sucesivos del 1 al 6
+v <- c(2,1,3,2,4,5)
+coneval <- read.csv("https://raw.githubusercontent.com/jvega68/EA3/master/datos/ConevalPobreza2016.csv")
+View(coneval)
+Estado <- coneval$Estado
+X1 <- coneval$Población.en.situación.de.pobreza
+```
+
+Le podemos poner nombres a los componentes de un vector y llamar a sus componentes por nombre
+
+```{r}
+names(X1) <- Estado
+X1
+X1["CDMX"]
+```
+
+Se pueden hacer las operaciones algebraicas usuales con vectores:
+
+```{r}
+u + v  # Suma (si tienen la misma longitud)
+2*u  # Multiplicación por un "escalar"
+```
+
+También se pueden hacer otras operaciones, pero es importante notar que estas no son parte de la definición matemática, sino del lenguaje:
+
+```{r}
+u*v   # producto componente a componente
+2 + v  # suma un escalar a un vector
+1:7 + v  # suma de vectores de diferente tamaño _cuidado_
+z <- c("rojo", "azul", "verde")  # "vectores" de caractéres o palabras.
+y <- c(1, 2, 3)
+names(y) <- z   # vectores con nombres
+```
+
+Y podemos definir algunas de las funciones que definieron en clase
+
+```{r}
+# Producto punto:
+producto.punto <- function(x,y){
+  if(length(x) != length(y)) stop("no coinciden dimensiones")
+  sum(x*y)
+}
+
+# Norma o longitud del vector (no confundir con length, que cuenta el número de
+# componentes)
+norma <- function(x){
+  sqrt(producto.punto(x,x))
+}
+
+u <- c(1, 3, 4, 2, 4)
+v <- c(7, 3, 56, 2, 1)
+producto.punto(x = u, y = v)
+norma(u)
+```
+
+Para vectores en el plano cartesiano, podemos hacer la gráfica de los vectores: Graficar los siguientes vectores: (-1,5), (2,3), (7,5) y (-6,-3)
+
+```{r}
+plot(x = c(-10,10), y = c(-10,10), type = "n",xlab = "",ylab = "")
+abline(h = 0, lty = 3)
+abline(v = 0, lty = 4)
+arrows(0,0,-1,5, col = "red", length = 0.1)
+arrows(0,0,2,3, col = "blue", length = 0.2)
+arrows(0,0,7,5)
+arrows(0,0,-6,-5, col = "orange")
+# agrega el vector naranja en la punta del vector rojo
+arrows(-1,5,-6-1,5-5, lty = 2, col = "orange")
+# agrega el vector suma de los vectores rojo y naranja
+arrows(0,0,-6-1,5-5, lwd = 3, col = "orange")
+```
+
+## Matrices y sus operaciones
+
+Ejemplos de matrices: diferentes maneras de construir matrices en R:
+
+```{r}
+# matriz con una constante
+(A <- matrix(0, nrow = 3, ncol = 4))
+A[2,3] # correspnde a la entrada en renglón 2 y col 3
+dim(A)
+
+
+
+# crea una matriz a partir de un vector
+b <- c(1,0.7,-0.3,0.7,2,1,-0.3,1,8,0,2,1)
+b
+dim(b) <- c(3,4)
+b
+dim(b) <- c(4,3) # llena por columna
+b
+dim(b) <- NULL
+b
+
+# Directamente con la función matriz
+B1 <- matrix(c(1,3,5,7,9,11,2,4,6,8,10,12), nrow = 4)
+B2 <- matrix(c(1,3,5,7,9,11,2,4,6,8,10,12), nrow = 4, byrow = TRUE)
+
+# Matriz construida a partir de "pegar" vectores
+u1 <- 1:10
+u2 <- 11:20
+u3 <- 21:30
+
+U <- rbind(u1,u2,u3) # Matriz por renglones 3x10
+W <- cbind(u1,u2,u3) # Matriz por columnas 10x3
+dimnames(W)
+dimnames(W)[[1]] <- paste("renglon",1:10,sep="_")
+```
+
+Operaciones con matrices:
+
+```{r}
+A <- matrix(c(3,4,-1,0,2,5), nrow = 2) # 2x3
+B <- matrix(c(3,6,4,4,-2,3), nrow = 3) # 3x2
+```
+
+```{r}
+# Producto de matrices
+A %*% B
+
+(C <- B %*% A)
+
+# Elementos diagonales de C: genera una vector con los elementos diagonales de C
+
+diag(C)
+
+# Si se aplica dos veces, crea una matriz diagonal
+
+diag(diag(C))
+
+# Matriz identidad
+
+I <- diag(1, nrow = 3)
+A %*% I
+
+# Matrices triangulares: 
+C2 <- C
+C2[upper.tri(C)] <- 0
+C2
+
+# Multiplicar un vector como matriz
+b <- 1:3
+dim(b) <- c(1,3)
+b
+b %*% B 
+c <- as.vector(b %*% B)
+c
+```
+
+```{r}
+# transpuesta
+t(A)
+```
+
+```{r}
+# inversa
+A <- matrix(c(12,-4,7,6), nrow=2)
+A
+A1 <- solve(A) #función inversa
+A %*% A1
+#Podemos redondear
+round(A%*% A1,2)
+round(A1 %*% A,5)
+```
+
+```{r}
+# Determinante (sólo matrices cuadradas)
+A <- matrix(c(1,2,3,4), nrow=2)
+det(A)
+```
+
+También podemos obtener los eigenvalores y eigenvectores de una matriz (también conocida como valores y vecores propios)
+
+```{r}
+# Ejemplo de matriz de Hilbert de dimensión 3: 
+H3 <- matrix(c(1, 1/2, 1/3, 
+               1/2, 1/3, 1/4,
+               1/3, 1/4, 1/5),nrow = 3)
+H3
+eigen(H3)
+```
+
+# Sistemas de ecuaciones
+
+Como vieron en las lecciones del módulo, las matrices están muy relacionadas con los sistemas de ecuaciones lineales. Por ejemplo, las ecuaciones:
+
+```{=tex}
+\begin{eqnarray}
+ x_1  +   3x_2 & = & 7 \\
+2x_1  +  4x_2 &=  &  10
+\end{eqnarray}
+```
+Se puede escribir de la forma:
+
+```{=tex}
+\begin{eqnarray}
+\begin{pmatrix} 1 & 3 \\ 2 & 4 \end{pmatrix} \begin{pmatrix} x_1 \\ x_2 \end{pmatrix} & = & 
+\begin{pmatrix} 7 \\ 10 \end{pmatrix} 
+\end{eqnarray}
+```
+```{r}
+A <- matrix(c(1,2,3,4),nrow=2)
+b <- c(7,10)
+x <- solve(A) %*% b # manera ineficiente
+x
+solve(A,b) # forma eficiente: utiliza un algoritmo mucho más eficiente
+```
+
+Hay tres posibles casos de soluciones para sistemas de ecuaciones:
+
+-   Exactamente una solución
+-   No soluciones
+-   Infinitas Soluciones
+
+Ver si el siguiente sistema es inconsistente:
+
+```{=tex}
+\begin{eqnarray}
+ x  +   y + 2z  & = & 3 \\
+-x  +  3y - 5z  & = & 7 \\
+2x  -  2y + 7z  & = & 1 \\
+\end{eqnarray}
+```
+```{r}
+library(matlib) # funciones para resolver sistemas lineales
+
+# Ejemplo de un sistema sin solución
+A  <- matrix(c(1, 1, 2, -1, 3, -5, 2, -2, 7), nrow = 3, byrow = T)
+b  <- c(3,7,1)
+gaussianElimination(A, b)
+```
+
+La ecuación de abajo nos dice que 0=5, por lo que el sistema no tiene solución
+
+Resolver:
+
+```{=tex}
+\begin{eqnarray}
+-x  +  2y + 3z  & = & 0 \\
+ x  -  4y - 13z  & = & 0 \\
+-3x +  5y + 4z  & = & 0 \\
+\end{eqnarray}
+```
+```{r}
+A <- matrix(c(-1,2,3,1,-4,-13,-3,5,4), nrow = 3, byrow = TRUE)
+b <- c(0,0,0)
+gaussianElimination(A,b)
+```
+
+¿Cuál es la solución?
+
+Resolver el siguiente sistema usando la eliminación gaussiana: \begin{eqnarray}
+- x  - y  + 2z \phantom{+ 2w} + 3u & = & \phantom{-} 1 \\
+              -x  + y  \phantom{+ 4z} + 2w - 5u & = & \phantom{-} 5 \\
+               x  - y  + 4z  + 2w + 4u          & = & \phantom{-} 13 \\
+              -2x + 2y - 5z - w -3u             & = & -1    
+\end{eqnarray}
+
+```{r}
+A <- matrix(c(1,-1, 2, 0, 3,
+             -1, 1, 0, 2,-5,
+              1,-1, 4, 2, 4,
+             -2, 2,-5,-1,-3), nrow = 4, byrow = TRUE)
+b <- c(1,5,13,-1)
+gaussianElimination(A,b)
+```
+
+# Cadenas de Markov
+
+Supongamos un juego con tablero circular con celdas marcadas del 1 al 10. Comenzando con $X_0=1$, se lanza un dado y se avanza ese número de casillas. Sea $X_n=$ número de la casilla en el $n$-ésimo movimiento
+
+```{r}
+library(igraph)
+
+g <- graph(edges = c(1,2,2,3,3,4,4,5,5,6,6,7,7,8,8,9,9,10,10,1), 
+           n = 10, 
+           directed = T)
+plot(g, edge.arrow.size = 0.7, vertex.size = 20, vertex.color = "yellow")
+```
+
+La matriz de probabilidades de transición está dada por:
+
+$$ P = \begin{pmatrix}
+0 & 1/6 & 1/6 & 1/6 & 1/6 & 1/6 & 1/6 & 0 & 0 & 0 \\
+0 & 0 & 1/6 & 1/6 & 1/6 & 1/6 & 1/6 & 1/6 & 0 & 0 \\
+0 & 0 & 0 & 1/6 & 1/6 & 1/6 & 1/6 & 1/6 & 1/6 & 0 \\
+0 & 0 & 0 & 0 & 1/6 & 1/6 & 1/6 & 1/6 & 1/6 & 1/6 \\
+1/6 & 0 & 0 & 0 & 0 & 1/6 & 1/6 & 1/6 & 1/6 & 1/6 \\
+1/6 & 1/6 & 0 & 0 & 0 & 0 & 1/6 & 1/6 & 1/6 & 1/6 \\
+1/6 & 1/6 & 1/6 & 0 & 0 & 0 & 0 & 1/6 & 1/6 & 1/6 \\
+1/6 & 1/6 & 1/6 & 1/6 & 0 & 0 & 0 & 0 & 1/6 & 1/6 \\
+1/6 & 1/6 & 1/6 & 1/6 & 1/6 & 0 & 0 & 0 & 0 & 1/6 \\
+1/6 & 1/6 & 1/6 & 1/6 & 1/6 & 1/6 & 0 & 0 & 0 & 0
+\end{pmatrix} $$
+
+```{r}
+P <- matrix(c(0,rep(c(rep(1/6,6),rep(0,5)),3),
+            rep(c(rep(1/6,7),rep(0,4)),6)), nrow=10, byrow=T)
+
+```
+
+Matriz de transición de 2 lanzamientos
+
+```{r}
+P2 <- P %*% P
+
+P3 <- P2 %*% P
+```
+
+Creamos una función que pueda hacer el producto de la misma matriz un número $n$ de veces:
+
+```{r}
+simulaciones <- function(n,Q){
+  R <- Q
+  for(i in 1:n) R <- R %*% Q
+  return(R)
+}
+
+W <- simulaciones(300,P)  # ejecuta 300 iteraciones del juego.
+```
+
+## problema de inventario
+
+Se considera un almacén que tiene un sólo producto y los siguientes supuestos:
+
+-   Cuando no hay el producto, las personas va a otro lado.
+-   Llamamos $X_n$ como el número de artículos en el almacén al inicio del periodo $n$
+-   El nivel del inventario máximo es 5
+
+Entonces, los posibles niveles del inventario son: 2,3,4 o 5.
+
+```{r}
+library(markovchain)
+
+P <- matrix(c(0.0498,0.1494,0.2240,0.224,
+              0,0.0498,0.1494,0.2240,
+              0,0,0.0498,0.1494,
+              0.9502,0.8008,0.5768,0.4026),nrow= 4)
+rownames(P)<- colnames(P) <- as.character(2:5)
+inventario <- new("markovchain", states  = as.character(2:5),
+                  transitionMatrix = P, name = "Inventario")
+steadyStates(inventario)
+```
+
+Una gráfica:
+
+```{r}
+plot(inventario)
+```
+
+# Modelos de Insumo-Producto de Leontief
+
+Supongamos una economía particular que depende de petróleo (P), energía (E) y servicios (S). La matriz de insumo-producto de tal economía es:
+
+```{r}
+#Matriz de insumo-producto
+A <- matrix(c(0.25,0.15,0.1,0.4,0.15,0.2,0.15,0.2,0.2), nrow=3, byrow=T)
+rownames(A) <- colnames(A) <- c("P","E","S")
+```
+
+Para interpretar A, por ejemplo, el primer renglón se lee como sigue: Para producir una unidad de petróleo, la industria del petróleo usa 0.25 unidades de petróleo, 0.15 unidades de energía y 0,1 unidades de servicio.
+
+El vector de producción y el vector de demanda satisfacen la ecuación: $p = Ap+d$ y de aquí obtenemos la relación $p=(I-A)^{-1}d$. La demanda usualmente es conocida, y la producción se obtiene a través de resolver el sistma.
+
+```{r}
+demanda <- c(120,80,100)  # vector de demanda
+(produccion <- solve(diag(3) - A,demanda))
+```
+
+Otro ejemplo:
+
+```{r}
+A <- matrix(c(34.69,5.28,10.45,4.92,61.82,25.95,5.62,22.99,42.03),
+            nrow = 3,
+            dimnames = list(c("Agricultura","Manufactura","Servicios"), c("Agricultura","Manufactura","Servicios")))
+
+ProduccionTotal <- c(84.56,163.43,219.03)
+# se requiere transponer porque apply hace siempre una transpuesta
+B <- t(apply(A,1,function(x)x/ProduccionTotal))
+demanda <- c(39.24,60.02,130.65)
+produccion <- solve(diag(3) - B ) %*% demanda
+produccion
+```
+
+[Bureau of Economic Analysis](https://www.bea.gov/industry/industry-underlying-estimates): Aquí se pueden consultar algunas matrices de insumo-producto.
+
+# Modelo de portafolios de inversión
+
+Consideremos un portafolio con tres activos, denotados por A, B y C. Supongan que los activos tienen medias y desviaciones estándar dados por los siguientes vector y matriz de datos mensuales.
+
+```{r}
+acciones <- c("A","B","C")
+rend <- c(0.0427,0.0015,0.0285)
+covas <- matrix(c(0.01,0.0018,0.0011,
+                  0.0018,0.0109,0.0026,
+                  0.0011,0.0026,0.02), nrow = 3)
+plot(sqrt(diag(covas)),rend,
+     pch = acciones, xlim=c(0,0.2),
+     xlab="riesgo", ylab="rendimiento")
+```
+
+Supongamos que $x_i$ es la proporción de la riqueza que se invierte en el instrumento $i$.
+
+```{r}
+p1 <- c(0.2,0.5,0.3) # proporciones de inversión
+```
+
+El rendimiento y riesgo del portafolio son entonces:
+
+```{r}
+rend_p1 <- producto.punto(p1,rend)
+sd_p1 <- as.numeric(sqrt(p1 %*% covas %*% p1))
+plot(sqrt(diag(covas)),rend,
+     pch = acciones, xlim=c(0,0.2),
+     xlab="riesgo", ylab="rendimiento")
+points(sd_p1,rend_p1,pch ="p",col="red")
+```
+
+Podemos seguir añadiendo portafolios,
+
+```{r}
+n <- 2000
+
+z <- matrix(0,nrow=n,ncol=3) #matriz de portafolios
+
+z[,1] <- runif(n)
+z[,2] <- runif(n)
+z[,3] <- 1-z[,1]-z[,2]
+
+# Para cada portafolio calcular su media y su varianza
+rend_z <- apply(z,1,function(x)sum(x*rend))
+sd_z <- apply(z,1,function(x)as.numeric(sqrt(x %*% covas %*% x)))
+
+plot(sqrt(diag(covas)), rend,
+     pch = acciones, xlim=c(0,0.2),
+     xlab="riesgo", ylab = "rendimiento")
+
+points(sd_p1,rend_p1,pch ="p",col = "red")
+points(sd_z, rend_z, pch = 16, cex = 0.2)
+```
+
+-   Otras funciones importantes que se aplican a las matrices y a los data frames: `apply`, `tapply`. Más adelante veremos otros ejemplos de este tipo de funciones, que son `lapply`, `sapply` y `mapply`.
+-   Ejemplos de modelo de Leontief de Insumo-Producto
+-   Modelo de portafolios de Markowitz
+-   Otros ejemplos de cadenas de Markov (si da tiempo)
+
+# Otras funciones poderosas para matrices
+
+## Función apply
+
+Esta función permite aplicar alguna función a una matriz ya sea por renglones o por columnas
+
+```{r}
+set.seed(1) #fijar la semilla de números aleatorios
+X <- matrix(sample(x = 1:20, size = 20, replace = F),nrow=5)
+apply(X,MARGIN = 1,mean) #calcula los promedios de cada renglón
+apply(X,MARGIN = 2,max)  #calcular el máximo de cada columna
+Y <- cbind(X,apply(X,MARGIN = 1,sum))
+colnames(Y) <- c("A","B","C","D","Total")
+```
+
+## Función tapply
+
+La función `tapply` permite aplicar una función a un vector, por grupos indicados por una o varias variables que etiquetan a los grupos.
+
+```{r}
+y <- sample(1:100,50,F)
+etiquetas <- rep(c("A","B","C","D"),c(20,10,5,15))
+tapply(y,etiquetas,function(x)max(x)-min(x))
+```
+
+## Ejemplo grandote: Asegurados del IMSS
+
+Veamos los datos de los asegurados por Entidad Federativa al mes de agosto de 2020. Los datos se encuentran en los datos del curso, pero se pueden bajar directamente de la página del IMSS. La ubicación del archivo está en <http://datos.imss.gob.mx/sites/default/files/asg-2020-08-31.csv>. Adicionalmente, para entender la estructura de datos, se requiere estudiar el diccionario de datos que se encuentra en la siguiente ubicación: <http://datos.imss.gob.mx/sites/default/files/diccionario_de_datos_1.xlsx>:
+
+```{r}
+# file.choose()`
+datos <- read.delim(file = "~/Dropbox/Diplomado de Matemáticas y Estadística 2022/Presentaciones/0. Introducción y manejo del lenguaje R/datos/asg-2020-08-31.csv", 
+                    fileEncoding = "ISO-8859-1", 
+                    sep = "|")
+```
+
+Este conjunto de datos NO es una matriz, sino un *data.frame*, pues tiene algunas columnas que no son múmeros, sino etiquetas, por ejemplo, las claves de los municipios. Vamos a formar una matriz tomando algunos campos numéricos y viendo cómo aplicar algunas funciones.
+
+Del diccionario de datos, vemos las siguientes definiciones:
+
+-   `sexo`: variable que indica si es hombre (1) o mujer (2). Aunque es numérica, en realidad es una etiqueta
+-   `cve_entidad`: identificador de la Entidad Federativa. Aunque es numérica, es una etiqueta.
+-   `asegurados`: Número de asegurados.
+-   `no_trabajadores`: Asegurados sin un empleo asociado
+-   `teu`: puestos de trabajo eventuales urbanos
+-   `tec`: puestos de trabajo eventuales del campo
+-   `tpu`: puestos de trabajo permanentes urbanos
+-   `tpc`: puestos de trabajo permanentes del campo
+
+```{r}
+sexo <- datos$sexo
+entidad <- datos$cve_entidad
+asegurados <- datos[,c("asegurados","no_trabajadores")]
+puestos_trabajo <- datos[,c("teu","tec","tpu","tpc")]
+head(puestos_trabajo,20) #muestra los primeros 20 renglones
+```
+
+¿Cómo obtenemos el total de puestos de trabajo?
+
+```{r}
+Total_puestos_trabajo <- apply(puestos_trabajo, 2, sum)
+```
+
+Si queremos obtener el total de trabajos por entidad federativa y también separado por hombres y mujeres?
+
+```{r}
+total_por_delegacion <- apply(puestos_trabajo, 1, sum)
+# el paréntesis externo es para que imprima el resultado en pantalla cuando termina
+(puestos_por_entidad <- tapply(total_por_delegacion,entidad,sum))
+(puestos_por_entidad_y_sexo <- tapply(total_por_delegacion,list(entidad,sexo),sum))
+```
+
+Si queremos ver los resultados en miles, tenemos que dividir cada renglón por 1000:
+
+```{r}
+(puestos_por_entidad_y_sexo <- tapply(total_por_delegacion,list(entidad,sexo),
+                                      function(x)sum(x)/1000))
+```

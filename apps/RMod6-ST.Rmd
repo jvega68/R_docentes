@@ -1,0 +1,294 @@
+---
+title: "R Módulo VI: Series de Tiempo"
+author: "MIDE"
+date: "12/12/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, comment = NULL)  
+ruta <- "~/Dropbox/Academia/COFECE/datos/st/"  #### Define aquí el directorio de datos
+```
+
+En esta sesión se harán algunos ejemplos de series de tiempo. Dada la extensión del tema, no es posible abarcar todos los temas posibles, por lo que revisaremos algunos temas en especial, y que fueron solicitados por algunos de los participantes.
+
+En términos prácticos, una serie de tiempo se puede analizar con varios propósitos en mente. Nos interesa comprender el comportamiento de una variable $y_t$ a lo largo del tiempo, por ejemplo:
+
+- para comprender sus fluctuaciones con respecto a un valor promedio, (variabilidad de la serie);
+- para identificar tendencia y nivel de la serie,
+- para proyectar su posible comportamiento hacia el futuro, generando pronósticos y predicciones útiles para la planeación y toma de decisiones;
+-  para tratar de encontrar un modelo matemático que explique el *proceso generador de los datos* así como su *comportamiento*, a través de si misma o de otros posibles *predictores*.
+
+Un supuesto fundamental de las series de tiempo es que es factible que *el comportamiento pasado de una variable nos ayude a explicar su comportamiento actual o su comportamiento futuro*.
+
+
+## Pronósticos y análisis de series temporales.
+
+Es importante hacer notar que pronosticar y analizar una serie de tiempo son dos actividades distintas. Un pronóstico es una visión de un futuro incierto, mientras que analizar una serie de tiempo es describir el proceso generador de los datos. Podemos analizar una serie de tiempo sin considerar como objetivo hacer pronósticos, así como podemos hacer pronósticos sin pensar en series de tiempo (o de hecho cualquier otro tipo de análisis).
+
+Los principales precursores de la actividad de pronóstico son la construcción de un modelo adecuado basado en el desarrollo histórico de la serie y la utilización de información relevante al posible desarrollo futuro de la serie.
+
+
+## Descomposición de series de tiempo.
+
+Una forma de modelar una serie de tiempo se obtiene al suponer que está conformada de diferentes componentes. Los componentes básicos son los
+siguientes:
+
+- **Tendencia**: el movimiento hacia arriba o hacia abajo que caracteriza a una serie de tiempo en un periodo de tiempo dado. Muestra el crecimiento o decline de una serie en el largo plazo.
+- **Estacionalidad**: es el comportamiento que muestra una serie a lo largo de un periodo de tiempo, típicamente un año, y que se repite durante varios periodos.
+- **Ciclo**: se refiere a movimientos recurrentes hacia arriba o hacia abajo alrededor del nivel de tendencia. Usualmente son movimientos que se observan en periodos mayores a un año.
+- **Error**: se refiere a la parte de la serie que es completamente aleatoria; es el error estadístico que se presenta por incertidumbre.
+
+El método clásico de descomposición tiene el objetivo de separar los componentes de una serie de tiempo. Este método supone que una serie de tiempo se puede escribir como una función de tres componentes:
+
+\[ X_t= f(TC_t,S_t,E_t)\]
+
+donde $f$ es una función que relaciona los componentes, $TC$ es un componente de tendencia-ciclo, $S$ es un componente estacional, $E$ es el componente de error o ruido de la serie.
+
+El modelo puede ser multiplicativo o aditivo. Veamos un ejemplo.
+
+
+```{r}
+pasajeros <- c(112, 118 , 132 , 129 , 121 , 135 , 148 , 148 , 136 , 119 , 104 , 118,
+115 , 126 , 141 , 135 , 125 , 149 , 170 , 170 , 158 , 133 , 114 , 140,
+145 , 150 , 178 , 163 , 172 , 178 , 199 , 199 , 184 , 162 , 146 , 166,
+171 , 180 , 193 , 181 , 183 , 218 , 230 , 242 , 209 , 191 , 172 , 194,
+196 , 196 , 236 , 235 , 229 , 243 , 264 , 272 , 237 , 211 , 180 , 201,
+204 , 188 , 235 , 227 , 234 , 264 , 302 , 293 , 259 , 229 , 203 , 229,
+242 , 233 , 267 , 269 , 270 , 315 , 364 , 347 , 312 , 274 , 237 , 278,
+284 , 277 , 317 , 313 , 318 , 374 , 413 , 405 , 355 , 306 , 271 , 306) 
+
+(n <- length(pasajeros))  #número de observaciones disponibles
+
+plot(pasajeros)
+
+# Para dar formato a la serie de tiempo, usamos la función ts
+
+(ts.pasajeros <- ts(data = pasajeros, start = c(1949,1), frequency = 12))
+
+plot(ts.pasajeros, main = "Número de pasajeros 1949:1957", type = "o", pch=16, 
+     col="red", lwd=2, xlab = "tiempo", ylab = "Número de pasajeros")
+
+```
+
+A través de hacer varios promedios se van teniendo los diferentes componentes de la serie. Aquí lo haremos directo con una sóla función:
+
+```{r}
+m <- decompose(ts.pasajeros, type = "m")
+plot(m)
+
+a <- decompose(ts.pasajeros, type = "additive")
+plot(a)
+```
+
+La ventaja de tener identificados los componentes de la serie es que ahora podemos pronosticar cada componente por separado. 
+
+
+## Promedios móviles
+
+Un *promedio móvil simple de orden $k$* para el tiempo $t$ se define como el promedio de las $k$ observaciones anteriores a $t$:
+$$ F_t^{(k)} = \frac{y_{t-1} + y_{t-2} + \cdots + y_{t-k}}{k} = \frac{1}{k}\sum_{i=1}^ky_{t-i}$$
+		
+Un promedio móvil de orden $k$ se denota como $MA(k)$. Mientras más grande es $k$ el efecto de suavizamiento es mayor, y se pierden más observaciones.
+
+```{r}
+library(forecast) # Rob Hyndman https://otexts.com/fpp2
+
+plot(ts.pasajeros)
+(ma5 <- ma(ts.pasajeros,order = 3))
+lines(ma5,col = "violet",lwd=4)
+
+# Para hacer un pronóstico de un horizonte de 20 periodos
+(F5 <- forecast(ma5, h = 40, level = c(0.80,0.90,0.95,0.99))) # h es el horizonte 
+plot(F5)
+lines(ts.pasajeros, col = "red", lwd = 2)
+```
+
+```{r}
+# Vamos a calcular el ajuste
+error <- (ma5 - ts.pasajeros)^2
+sum(error, na.rm=T)
+```
+
+
+
+## Suavizamiento exponencial
+
+Hay situaciones en donde las observaciones más recientes contienen información más actualizada sobre lo que se espera en el futuro y por lo tanto, se les tiene que dar un peso mayor que a las observaciones más antiguas. El método de suavizamiento exponencial  calcula el pronóstico como una	combinación entre el pronóstico del periodo anterior y la última observación disponible:
+\[ F_t(\alpha) = \alpha y_{t-1} + (1-\alpha)F_{t-1}\]
+donde al parámetro $\alpha$ se le llama factor de suavizamiento, y $\alpha\in (0,1)$ es un peso que pondera la relación entre ambos términos.
+
+```{r}
+(se1 <- ses(ts.pasajeros, alpha= 0.3,h = 30))
+plot(se1)
+lines(se1$fitted,lwd=4,col="salmon")
+forecast(se1, h=20)
+plot(forecast(se1, h=20))
+```
+
+
+## Holt-Winters
+
+Este es uno de los modelos más utilizados de pronósticos. El método de Holt-Winters está diseñado para datos estacionales. Winters (1960) extendió el método de Holt, y hay dos versiones dependiendo de cómo se modele la estacionalidad (aditiva o multiplicativa). En este caso se tienen 4 ecuaciones y 3 parámetros:
+
+- Nivel     $L_t = \alpha \frac{y_t}{S_{t-s}} + (1-\alpha)(L_{t-1}+b_{t-1})$
+- Tendencia $b_t = \beta (L_t-L_{t-1}) + (1-\beta)b_{t-1}$
+- Estacional $S_t = \gamma \frac{y_t}{L_t} + (1-\gamma)S_{t-s}$
+- Pronóstico $F_{t+m} = (L_t+b_t m)S_{t-s+m}$
+
+```{r}
+m <- HoltWinters(ts.pasajeros)
+plot(m) # la serie completa
+plot(fitted(m)) # los componentes de la serie estimada
+plot(forecast(m, h = 20))
+
+# se puede tener control fino de cada parámetro
+plot(HoltWinters(ts.pasajeros, seasonal = "additive"))
+plot(HoltWinters(ts.pasajeros, alpha = 0.5, beta = 0.4, gamma = 0.2), col = "green", lwd = 3)
+```
+
+
+## Box y Jenkins
+
+Aquí agrego un resumen de las herramientas que son necesarias para hacer un análisis de series de tiempo tipo Box-Jenkins. Algunas son necesarias para construir el modelo y otras son necesarias para diagnosticar el modelo.
+
+- Gráficas de las series de tiempo.
+- Concepto de estacionariedad, operador diferencia y prueba de estacionariedad de Dickey-Fuller.
+- Conceptos de autocorrelación y autocorrelación parcial y sus respectivas funciones y gráficas ({\tt acf}, {\tt pacf})
+- Concepto y gráficas de ruido blanco.
+- Pruebas estadísticas para coeficientes de autocorrelación de Bartlett, y de Ljung-Box.
+- Definiciones de procesos: autoregresivo (AR), de promedios móviles (MA). 
+
+En lo que sigue, se dará un repaso muy general de estos conceptos, y veremos varios ejemplos para ir aplicando los conceptos.
+
+### Ejemplo
+
+Para conocer el margen de mercado que tiene Kimberly-Clark con la marca kleenex, se le han pedido su producción semanal, que reporta para las 120 semanas anteriores a esta y en unidades de 10,000 paquetes. Se requiere un modelo para analizar su comportamiento y hacer un pronóstico para saber si no está inundando el mercado.
+
+```{r}
+kleenex <- read.table("kleenex.txt")   # lee los datos
+kleenex <- ts(kleenex, start = 1, freq = 52)  # convierte a una serie con frecuencia semanal. 
+plot(kleenex, main = "Valores originales de la serie",
+              xlab = "Tiempo",
+              ylab = "paquetes de kleenex")
+```
+
+Vemos que la serie no parece fluctuar en torno a una media constante, y por lo tanto no parece ser estacionaria. Si tomamos las primeras diferencias de la serie, definidas como $z_t = y_t - y_{t-1}$ utilizando el operador `diff` obtenemos lo siguiente:
+
+```{r}
+dkleenex <- diff(kleenex, differences = 1)
+plot(dkleenex, main = "Primeras diferencias de la serie de kleenex", 
+               xlab = "Tiempo",
+               ylab = "primeras diferencias")
+```
+
+Ahora la serie parece fluctuar alrededor de una media constante, por lo que la primera diferencia parece ser estacionaria.
+
+En ocasiones no es suficiente tomar sólo una diferencia. Si la primera diferencia no resulta estacionaria, entonces debemos tomar una segunda diferencia. Por ejemplo, tomamos la segunda diferencia de estos datos:
+
+```{r}
+d2kleenex <- diff(kleenex, difference = 2)
+head(d2kleenex)
+plot(d2kleenex, main = "Segunda diferencia de kleenex")
+```
+
+Identificando estacionariedad con las funciones de autocorrelación:
+
+```{r}
+layout(matrix(c(1,1,2,2,3,4,5,6),nrow=2,byrow=T))
+plot(kleenex, main = "Serie kleenex original")
+plot(dkleenex, main = "Serie kleenex diferenciada")
+acf(kleenex)
+pacf(kleenex)
+acf(dkleenex)
+pacf(dkleenex)
+```
+
+Pruebas de Box (Box-Pierce y Ljung-Box):
+
+```{r}
+Box.test(dkleenex, lag = 1, type = "Box") # h= 1 en este ejemplo
+Box.test(dkleenex, lag = 1, type = "Ljung")
+```
+
+Cálculo de modelos ARIMA por fuerza bruta:
+
+```{r}
+#AIC guarda el criterio de información de Akaike
+AIC <- array(NA, dim=c(4,2,4), dimnames = list(paste("p=",0:3), paste("d=",0:1), paste("q=",0:3)))
+for(p in 1:4) for(q in 1:4)	for(d in 1:2) AIC[p,d,q] <- arima(kleenex, order = c(p-1,d-1,q-1))$aic
+AIC
+```
+
+Elegimos dos modelos relativamente cercanos, para ver los coeficientes 
+
+```{r}
+mod1 <- arima(kleenex,order = c(3,1,2))
+mod1
+mod2 <- arima(kleenex, order = c(0,1,1))
+mod2
+tsdiag(mod1)
+#Gráfica qqplot de los residuales del modelo 1
+
+qqnorm(mod2$resid)
+tsdiag(mod2)
+```
+
+Haciendo pronósticos con el modelo estimado
+
+```{r}
+pron1 <- predict(mod1,12)  # Haz una predicción de 12 periodos.
+pron1
+ts.plot(kleenex, pron1$pred, pron1$pred +2*pron1$se, pron1$pred -2*pron1$se)
+```
+
+
+Ejemplo del IPC de la Bolsa Mexicana de Valores. Los datos fueron extraídos de la página del Banco de México. Son datos diarios desde enero de 1999 hasta el 23 de septiembre de 2005.
+
+```{r}
+ipc <- read.csv("ipcbmv1999-2005.txt", header = T)$ipc
+# la función layout permite hacer arreglos de gráficas de diferentes dimensiones 
+# en un sólo frame.
+layout(rbind(c(1,1), c(0,0), c(2,3)), heights = c(2,0,1))
+plot(ipc, type = "o", cex = 0.4,
+     main = "Indice diario de la Bolsa Mexicana de Valores, 1999-2005", xlab = "día", ylab = "índice")
+abline(h = seq(4000, 16000, by = 1000), col = "snow3", lty=3) #agrega lineas punteadas horizontales         
+acf(ipc) #función de autocorrelación
+pacf(ipc) #función de autocorrelación parcial
+
+# Diferenciamos la serie para tratar de hacerla estacionaria
+# y reptimos las gráficas para la serie diferenciada
+dipc <- diff(ipc)
+layout(rbind(c(1,1),c(0,0),c(2,3)),heights=c(2,0,1))
+plot(dipc,type="o",cex=0.4,
+main="1a dif. Indice diario de la Bolsa Mexicana de Valores, 1999-2005",xlab="día",ylab="índice")
+abline(h=seq(-400,400,by=100),col="snow3",lty=3) #agrega lineas punteadas horizontales         
+acf.ipcdif <- acf(dipc) #función de autocorrelación
+pacf.ipcdif <- pacf(dipc) #función de autocorrelación parcial
+```
+
+Calculemos algunas estadísticas  para la serie diferenciada, para verificar si es ruido blanco. Tomemos $h=30$:
+
+```{r}
+#Box-Pierce
+Box.test(dipc,lag = 30, type = "Box-Pierce")
+#Ljung-Box
+Box.test(dipc,lag = 30, type = "Ljung-Box")
+(mod1 <- arima(dipc,order = c(3,1,2))) # Ejemplo de un modelo ajustado
+
+
+# Prueba de Dickey Fuller para revisar si la serie es estacionaria (también se conocen como pruebas de
+# raíz unitaria)
+library(tseries)  # aqui está la función.
+adf.test(dipc, k = 0) # k es el número de componentes incluídos en la ecuación de regresión que se prueba
+```
+
+
+La prueba de Dicker-Fuller consiste en estimar la regresión:
+	\[\nabla y_t = \phi y_{t-1} +\beta_1\nabla y_{t-1} + \beta_2 \nabla y_{t-2} + \cdots + \beta_p \nabla y_{t-p} + u_t\]
+donde $u_t$ es un componente de error que se supone tiene media 0.
+
+
+## Modelos más complicados
+
+Para el modelo ardl, se puede consultar un ejemplo en: [https://rpubs.com/cyobero/ardl](https://rpubs.com/cyobero/ardl)

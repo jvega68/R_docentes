@@ -1,0 +1,345 @@
+---
+title: "R Módulo IV: Estadística"
+author: "MIDE"
+date: "05/12/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, comment = NULL)
+library(psych) #funciones describe
+library(corrplot)
+```
+
+En esta sesión haremos algunos ejercicios de temas vistos en el modulo IV sobre temas estadísticos. Los temas que se vieron son más o menos los siguientes: 
+
+- Probabilidad
+- Concepto de variables aleatorias
+- Medidas de tendencia central y dispersión
+- Distribuciones de probabilidad
+- Pruebas de hipótesis
+
+
+Para lo que sigue, consideremos un conjunto de datos como ejemplo, en el que podamos aplicar los temas que correspondan. Para este tema, se considerarán los datos que están en el archivo `heart_failure_clinical_records_dataset.csv` que están en el directorio de Dropbox. Estos datos corresponden a pacientes que tienen un infarto, y se toman algunos factores de riesgo y algunos indicadores especializados presentes en dichos pacientes. Estos datos fueron obtenidos de [Kaggle](https://www.kaggle.com/andrewmvd/heart-failure-clinical-data).
+
+# Análisis descriptivo
+
+Primero, leemos los datos. 
+
+```{r}
+datos <- read.csv("heart_failure_clinical_records_dataset.csv")
+```
+
+Los campos que se tienen de la tabla son los siguientes (tomado del diccionario de datos):
+
+- `age`: age of the patient (years)
+- `anaemia`: decrease of red blood cells or hemoglobin (boolean)
+- `high blood pressure`: if the patient has hypertension (boolean)
+- `creatinine phosphokinase` (CPK): level of the CPK enzyme in the blood (mcg/L)
+- `diabetes`: if the patient has diabetes (boolean)
+- `ejection fraction`: percentage of blood leaving the heart at each contraction (percentage)
+- `platelets`: platelets in the blood (kiloplatelets/mL)
+- `sex`: woman or man (binary)
+- `serum creatinine`: level of serum creatinine in the blood (mg/dL)
+- `serum sodium`: level of serum sodium in the blood (mEq/L)
+- `smoking`: if the patient smokes or not (boolean)
+- `time`: follow-up period (days)
+- `death event`: if the patient deceased during the follow-up period (boolean)
+
+Algunas preguntas que se pueden hacer: 
+
+- ¿Qué tipo de variable se tiene en cada caso? 
+- ¿Cuál es la población asociada cada una de estas variables
+- ¿De qué tamaño es la muestra que se tiene?
+
+Cada una de las columnas de la matriz de datos puede considerarse una muestra de una variable aleatoria. 
+
+Podemos ver que el conjunto tiene variables indicadoras o dummy, y cuantitativas. El archivo original no incluye variables categóricas, así que vamos a crear una para tener de todos los tipos Por ejemplo, podemos agregar una variable `gedad` que diga si la persona es joven (de 0 a 40 años), adulta (de 41 a 59 años), o senil (de 60 en adelante).
+
+```{r}
+datos$gedad <- factor(ifelse(datos$age <= 40, "joven", 
+                             ifelse(datos$age <= 60, "adulto", "senil")))
+str(datos)
+```
+
+
+Podemos calcular la matriz de correlaciones entre las variables (excepto la última, que no es numérica)
+
+```{r}
+R <- cor(datos[,-14]) # calcula la matriz de correlaciones
+dim(R)
+round(R,3)
+```
+
+## Gráficas en estadística, estadísticas sumarias
+
+Primero intentamos familiarizarnos con los datos disponibles. Podemos ver los datos, entender a qué se refieren cada una de las columnas de lo datos, etc. 
+
+```{r}
+View(datos) # Para mostrar los datos tipo Excel
+str(datos)  # estructura de datos
+summary(datos) # da una idea de la distribución de cada variable
+describe(datos) # de psych
+
+#Para calcular la desviación estándar:
+apply(datos[ ,-14],2,sd)
+```
+
+Podemos estudiar subpoblaciones, o poblaciones condicionando por alguna variable de interés. 
+
+```{r}
+describe(age ~ diabetes, data = datos) # podemos obtener información por grupos
+describe(anaemia ~ gedad, data = datos) # proporción de personas por grupo de edad
+describe(anaemia + diabetes ~ gedad, data = datos) # se puede hacer para varias variables
+```
+
+Podemos hacer varios tipos de gráficas, dependiendo de los datos disponibles. Por ejemplo, un histograma
+
+```{r}
+# histograma y densidad
+hist(datos$age, breaks = 30,  
+     main = "Histograma de edad", 
+     xlab= "Edad (años)", 
+     ylab = "Freceuencia")
+hist(datos$age, breaks = 20, prob=T)
+lines(density(datos$age), col = "brown", lwd = 3, lty = 1)
+plot(density(datos$platelets/1e5, bw="SJ"), col="red",lwd=3) 
+
+# gráfica de caja (para hacer comparaciones entre subpoblaciones)
+boxplot(platelets ~ gedad, data = datos)
+
+# podemos hacer un factor ordenado
+datos$gedad <- factor(datos$gedad, ordered = T, levels= c("joven", "adulto", "senil"))
+boxplot(platelets ~ gedad, data = datos)
+
+violin(platelets ~ gedad, data = datos, col = rainbow(3)) #Paquete psych
+
+# pie: no recomendado
+rebanadas <- table(datos$gedad)
+etiquetas <- paste(levels(datos$gedad),round(100*rebanadas/length(datos$gedad),1))
+pie(rebanadas, labels = etiquetas, col = c("red","blue","yellow"))
+
+# Un mejor método para graficar proporciones son los dotcharts
+dotchart(round(100*rebanadas/length(datos$gedad),1),
+         main = "gráfica que sustituye a los pies")
+
+# matriz de correlaciones
+library(corrplot)
+corrplot(R, method = "ellipse",type = "lower",order = "hclust")
+
+# Gráfica de telaraña o radar
+library(fmsb)
+radarchart(datos[,c(1,3,5)],axistype = 1)
+```
+
+
+## Probabilidad, variables aleatorias, Distribuciones discretas y continuas
+
+Podemos generar muestras de prácticamente cualquier variable aleatoria que necesitemos en la práctica. También podemos estimar los parámetros de un modelo, revisar bondad de ajuste de los datos, etc.
+
+Por ejemplo, ¿cuál es la probabilidad de que una persona menor a 45 años sea diabética?
+
+```{r}
+# devuelve los índices en la matriz de datos que corresponden a 
+# diabéticos
+diabeticos <- which(datos$diabetes==1)
+# calcula la probabilidad de que un diabético tenga menos de 45 años
+mean(datos$age[diabeticos] <= 45) # probabilidad 
+# calcula la probabilidad de que un diaético tenga más de 60 años
+mean(datos$age[diabeticos] > 60) # probabilidad 
+# Distribución de probabilidad emṕirica de la edad de los diabéticos
+plot(ecdf(datos$age[diabeticos]))
+```
+
+¿Cómo se compara la distribución de plaquetas con una distribución normal? Usamos la función de distribución acumulativa.
+
+```{r}
+# proporción de observaciones en la muestra que son menores o 
+# iguales a un valor x: P(X<=x)
+plot.ecdf(datos$platelets)
+
+lines(ecdf(rnorm(300, mean=mean(datos$platelets),
+                 sd = sd(datos$platelets))), col = "red")
+# Prueba de Kolmogorov-Smirnov para bondad de ajuste. Prueba la hipótesis F = G vs F != G
+ks.test(x = datos$platelets, y = "rnorm", alternative = "two.sided")
+# Se puede hacer la prueba para menor que (less) o mayor que (upper)
+
+plot.ecdf(datos$age)
+lines(ecdf(rpois(299, lambda = mean(datos$age))),col = "red")
+# Prueba de Kolmogorov-Smirnov para bondad de ajuste. Prueba la hipótesis F = G vs F != G
+ks.test(x = datos$platelets, y = "rnorm", alternative = "two.sided")
+# Se puede hacer la prueba para menor que (less) o mayor que (upper)
+```
+
+Podemos generar observaciones de diferentes distribuciones, continuas y discretas, para diferentes fines:
+
+```{r}
+X <- rpois(1000, lambda = 4)  #Poisson con media 4. La varianza teórica es la misma que la media 
+# r-nombre : sirve para generar números aleatorios
+# q-nombre : sirve para dada una probabilidad, encontrar el quantil
+# d-nombre: densidad
+# p-nombre: distribución
+mean(X)
+var(X)
+hist(X)
+
+# densidad gamma
+curve(dgamma(x, shape = 3, rate = 3), from = 0, to = 10,
+      main = "Densidad gamma")
+
+# densidad beta
+curve(dbeta(x,shape1 = 2,shape2 = 5), from = 0, to = 1,
+      main = "Densidad beta")
+
+# La siguiente gráfica es más apropiado para variables discretas
+plot(table(X)/1000, type = "h", lwd = 2, col = "blue", ylab = "p")
+points(0:11,table(X)/1000, pch=16, cex = 2, col = "dark red")
+
+# Simula 1000 veces 10 lanzamientos de monedas
+Y <- rbinom(1000, size = 10, prob = 0.5)  
+hist(Y, breaks=60) # Hay que hacer la partición más fina para ver que la distribución es discreta
+plot(table(Y))
+
+# Simula 1000 veces lanzamiento de un dado
+Z <- sample(1:6, size = 10000, replace = T) 
+table(Z)  # frecuencias
+table(Z)/10000 # proporciones
+```
+
+# Procesos estocásticos
+
+Podemos generar un proceso Poisson, que cuenta el número de ocurrencias de un evento en el tiempo. Esto se relaciona con los tiempos exponenciales.
+
+```{r}
+set.seed(20) # fija una semilla aleatoria
+tiempos <- rexp(100, rate = 2) # en promedio, ocurren 2 eventos por unidad de tiempo. 
+plot(cumsum(tiempos), 1:100,type="s", main = "Proceso Poisson")
+```
+
+Un ejemplo de un proceso Browniano (Robert Brown)
+
+```{r}
+z <- rnorm(1000)
+plot(cumsum(z), type="l", main = "Movimiento browniano")
+abline(h=0)  # agrega una linea horizontal
+
+# proceso con tendencia:
+z <- 0.1 + rnorm(1000)
+plot(cumsum(z),type="l")
+
+# Movimiento browniano en el plano
+n <- 2000
+plot(cumsum(rnorm(n)), cumsum(rnorm(n)), type = "l")
+abline(h=0,v=0)
+```
+
+
+Características de las poblaciones. Por ejemplo, cuantil de una distribución normal estándar (para no buscarlo en tablas) al 90%, 95% y 99%:
+
+```{r}
+qnorm(p = c(0.95,0.975,0.995), lower.tail = T)
+qt(p = c(0.95,0.975, 0.995), df = 100, lower.tail = T)
+```
+
+## Conteo: combinaciones y permutaciones, probabilidad condicional
+
+Básicamente se tienen funciones de conteo que pueden usarse para calcular ciertas probabilidades:
+
+```{r}
+choose(10, 5)  # Cuantos subconjuntos de tamaño 5 se pueden hacer con 10 elementos
+factorial(10)  # 10! = 10*9*8*7*6*5*4*3*2*1 
+```
+
+## Medidas de tendencia central
+
+Cuando se vieron las estadísticas sumarias, vimos algunas de estas medidas. Además de la media, la mediana, y la moda, hay otras medidas de tendencia central que se pueden usar en diferentes contextos
+
+```{r}
+x <- datos$platelets 
+mean(x)
+median(x)
+# No hay una función para la moda, podemos hacer la nuestra. Esta puede funcionar para categorías o números discretos
+moda <- function(x){
+        u <- unique(x)
+        u[which.max(tabulate(match(x,u)))]
+}
+# Ejmplo de aplicación de la función anterior:
+moda(datos$platelets)
+moda(datos$gedad)
+moda(c(1,2,3,42,2,2,3,2,1,3,2,2,2,2,3,4,5,5))
+
+# media recortada
+mean(x,trim = 0.10) # corta 10% de las observaciones de cada cola (10% abajo y 10% arriba, 20% en total)
+```
+
+## Medidas de dispersión
+
+Aquí podemos agregar el coeficiente de variación, que es la desviación estándar entre la media, que nos dice qué tan grende es la desviación estándar con respecto a la media.
+
+```{r}
+(cv <- sd(x)/mean(x))      # coeficiente de variación
+(rango <- max(x) - min(x)) # rango
+mad <- mean(abs(x-mean(x))) # desviación media absoluta. Se usa mucho como medida de error en los pronósticos
+```
+
+
+## Teorema central del límite
+
+Un ejercicio sencillo para probar el teorema del límite central. La idea es probar que el promedio de cualquier variable aleatoria sigue una distribución normal cuando el tamaño de muestra es muy grande
+
+```{r}
+TLC <- function(n,k){ 
+# n es el tamaño de muestra, y k es el número de simulaciones que se repetirá el ejercicio para calcular 
+# el histograma de la media de los n datos.
+media <- numeric(k) # donde vamos a guardar las medias
+for(i in 1:k){
+  X <- rgamma(n, shape=10, rate = 2)
+  media[i] <- mean(X)
+}
+par(mfrow=c(1,2))
+hist(rgamma(1000, shape=10,rate = 2), breaks = 30, prob = T, main = "distribución gamma(2,10)")
+lines(seq(2,10,length=1000),dgamma(seq(2,10,length=1000), shape=10, rate = 2), col ="green", lwd=3)
+hist(media, breaks = min(n/5,100), prob=T, main = "distribución de la media de gammas(2,10)")
+lines(seq(4,6,length=1000),dnorm(seq(4,6,length=1000),mean=10/2,sd=sqrt(10/4/n)),col="red",lwd=3)
+}
+
+TLC(30,100)
+TLC(5000,5000)
+```
+
+
+## Intervalos y pruebas de hipótesis
+
+Supóngan que queremos probar que las proporciones de muertes son iguales para hombres y mujeres. Podemos hacer lo siguiente:
+
+```{r}
+xtabs(DEATH_EVENT ~ sex, data=datos)
+n <- length(datos$DEATH_EVENT)
+prop.test(x = c(34,62), n = c(n,n), alternative = "two.sided")
+prop.test(x = c(7,155,137), n = c(n,n,n), alternative = "two.sided")
+```
+
+Ahora supongamos que queremos probar que la proporción de muertes para hombres es mayor a 0.10
+
+```{r}
+prop.test(x = 34, n = n, p = 0.1, alternative = "greater")
+```
+
+Para probar igualdad de medias:
+
+```{r}
+a <- tapply(datos$creatinine_phosphokinase, datos$diabetes,mean)
+b0 <- datos$creatinine_phosphokinase[datos$diabetes==0]
+b1 <- datos$creatinine_phosphokinase[datos$diabetes==1]
+t.test(x = b0, y = b1, alternative = "two.sided",conf.level = 0.95)
+
+# También podemos usar la notación de modelos
+t.test(creatinine_phosphokinase ~ diabetes, data = datos, conf.level = 0.99)
+```
+
+Si queremos probar que es igual una de ellas a un valor específico:
+
+```{r}
+t.test(x = b0, mu = 600)
+```
+

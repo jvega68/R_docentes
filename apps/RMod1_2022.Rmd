@@ -1,0 +1,271 @@
+---
+title: "R para el modulo 1"
+author: "MIDE"
+date: "03/9/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, comment = NA)
+```
+
+# Conjuntos
+
+En R se pueden hacer algunas operaciones con conjuntos, aunque no es estrictamente formal en todas las operaciones como en matemáticas. R tiene algunos comandos y paquetes que ayudan al manejo de conjuntos
+
+Consideremos un **vector** como si fuera un conjunto.
+
+```{r}
+x <- c(1,4,3,5,6,6,72,3)
+y <- 1:8
+```
+
+En R, las operaciones básicas de conjuntos son:
+
+-   pertenencia
+
+```{r}
+is.element(6,x)
+```
+
+-   unión
+
+```{r}
+union(x,y)
+```
+
+-   intersección
+
+```{r}
+intersect(x,y)
+```
+
+-   diferencia de conjuntos: $A-B$ significa los elementos que estan en $A$ pero que no están en $B$.
+
+```{r}
+setdiff(x,y) # la diferencia de x & y
+setdiff(y,x) # la diferencia de y & x
+```
+
+-   comparación de conjuntos
+
+```{r}
+setequal(x,y)
+z <- 8:1 # valores de y pero en otro orden
+setequal(y,z)
+```
+
+También es posible hacer algunos ejemplos de diagramas de Venn, utilizando algunos. El paquete `RVenn` permite hacer operaciones con conjuntos y con los diagramas de Venn
+
+```{r}
+#install.packages("RVenn") 
+library(RVenn)
+# Para definir conjuntos, hay que crear una lista con los diferentes conjuntos que se van
+# a trabajar
+A <- c("e","o","j","b","f") # El conjunto A tiene 5 elementos
+B <- c(letters[1:5],"o")
+set.seed(10) # fija la semilla del generador de números aleatorios
+C <- sample(letters,10) # toma una muestra aleatoria del conjunto de letras de tamaño 10. 
+D <- c("e","o","k","K","L")
+E <- NULL #Conjunto vacío.
+Conjuntos <- list(A = A, B = B, C = C, D = D, Vacio = E)
+```
+
+Ahora la decimos a R que los conjuntos con los que se operará son los que estan en la lista
+
+```{r}
+Omega <- Venn(Conjuntos) # Convierte la lista que tenemos a un universo de elementos.
+```
+
+Las funciones de conjuntos en el paquete se llaman diferente:
+
+-   overlap: intersect
+-   unite: union
+-   discern: setdiff
+
+```{r}
+overlap(Omega) # Consider la intersección de todos los conjuntos. 
+overlap(Omega, slice = c("A","Vacio"))
+overlap(Omega, slice = c("A","B","D"))
+overlap_pairs(Omega, slice = c(1,2,4)) 
+#También se puede poner (aunque no da los nombres correctos): 
+overlap_pairs(Omega, slice = c("A","B","D")) 
+unite(Omega, slice = c("A","D"))
+discern(Omega, slice1 = c("A","B"),slice2 = "D")
+```
+
+Para hacer diagramas de Venn, podemos usar la función del paquete que se llama `ggvenn`, pero está limitada a dos o tres conjuntos. 
+
+```{r}
+library(ggplot2) # se requiere para la gráfica. 
+ggvenn(Omega, slice = c("A","D"))
+```
+
+Hay otro paquete que se llama exactamente igual que la función `ggvenn` pero permite hacer mas conjuntos. 
+
+```{r}
+library(ggvenn)
+ggvenn::ggvenn(Conjuntos, 
+               fill_color = c("blue","red","yellow","green"))
+```
+
+Vamos a considerar un ejemplo "grande":
+
+```{r}
+set.seed(5) # Fijamos la semilla en uno
+etiquetas <- paste0("a",1:1000)
+X <- list(
+       A = sample(etiquetas, 300),
+       B = sample(etiquetas, 520),
+       C = sample(etiquetas, 440),
+       D = sample(etiquetas, 20))
+ggvenn::ggvenn(X)
+# Para saber qué elementos estan en cada intersección
+XOm <- Venn(X)  
+discern(XOm,slice1 = "C", slice2 = c("A","B","D"))
+```
+
+
+# Sobre Números
+
+El valor `NA` significa *not available* y se usa para datos faltantes. La función `is.na`
+
+```{r}
+x <- c(1,2,3,NA,4,10)
+x + 3
+is.na(x)
+which(is.na(x)) # Qué elemento de un vector cumple con cierta condición. 
+```
+
+El simbolo `NaN` significa *Not a Number* ,`Inf` denota infinito y `-Inf` es menos infinito
+
+```{r}
+# Algo de aritmética con infinitos y ceros
+Inf + 81392973917297929
+Inf*(-162979)
+Inf*Inf
+Inf*(-Inf)
+Inf/Inf
+524/0
+0/Inf
+0*Inf
+1/Inf
+NaN*3
+```
+
+`NULL` es el objeto vacío o nulo. Un objeto nulo siempre tiene longitud 0. Se interpreta como el conjunto vacío. 
+
+```{r}
+x <- NULL
+length(x)
+x <- append(x,1) # Sirve para inicializar listas o vectores. 
+```
+
+# Funciones y gráficas de funciones
+
+En R la funciones son prácticamente iguales a las funciones como se definen en matemáticas. Por otro lado, generar gráficas con R puede ser muy fácil o extremadamente complicado, pero siempre es divertido.
+
+La estructura de una función en R
+
+```{r, eval = F}
+  mifuncion <- function(argumentos){
+    # Poner aquí lo que hace la función
+    return(loqueregresalafunción)  #EL return no siempre es necesario
+  }
+```
+
+Las funciones puede devolver como salida números, vectores, matrices, listas, mensajes, gráficas, etc.
+
+```{r}
+f <- function(x){
+     sin(x^2 + 2)/(x+3)
+}
+
+f(1)
+f(c(1,5,10)) # algunas operaciones son vectorizadas
+curve(f, from = -10, to = 10,
+         main = "Mi primera función",
+         col = "red",
+         lwd = 3)
+abline(v=0, lty = 2)
+abline(h=0, lty = 3)
+```
+
+
+Esta función es un polinomio de grado 3
+
+```{r}
+pol3 <- function(x){
+           3*x^3 - 2*x^2 + 5*x - 2
+}
+pol3(2)
+pol3(c(2,4,5))
+```
+
+Podemos hacer una gráfica de una función usando el comando `curve`:
+
+```{r}
+curve(pol3, from = -10, to = 10, main = "Polinomio de grado 3",
+      lwd = 3, col = "blue")
+# agregar componentes a la gráfica
+abline(h = c(0,1000,2000), lty = 2) #linea punteada
+abline(v = 0, lty = 2)
+```
+
+Hagamos una función discontinua o definida a trozos
+
+```{r}
+g <- function(x){
+     ifelse(x < 1, x^2 - 1,
+        ifelse((1 < x) & (x < 2), x^3-5,
+          ifelse(x > 2, 5 - 2*x , NA)))
+}
+g(3)
+g(c(-3,1,2,4))
+```
+
+Hagamos la gráfica
+
+```{r}
+curve(g, from = -5, to = 5, col = "red", lwd = 3)
+abline(h = 0, lty = 3)
+abline(v = 0, lty = 2)
+```
+
+Ahora consideremos la famosa "Campana" de Gauss (es la densidad de la distribución normal):
+
+```{r}
+N <- function(x, m = 0, s = 1){
+  1/(s*sqrt(2*pi))*exp(-(x-m)^2/(2*s^2))
+}
+curve(N(x,m = 40, s= 1),from = 30, to = 50)
+curve(N(x,m = 40, s= 10),from = 30, to = 50, add=T, col = "red", lwd = 4)
+abline(v=40,col = "purple")
+text(35,0.2,"Hola")
+N(1, m = 3)
+```
+
+```{r}
+f1 <- function(x){
+      s <- NULL # Valor inicial de s
+      if(x ==1)s <- 10
+      return(s)
+}
+f1(2)
+f1(1)
+```
+
+
+¿Cómo harían la composición entre pol3 y norm?
+
+```{r}
+h <- function(x){N(pol3(x))}
+curve(h(x),from = -1,  to = 1)
+```
+
+y la composición entre norm y pol3:
+
+```{r}
+g <- function(x){pol3(N(x))}
+curve(g(x),from = -5,  to = 5)
+```
