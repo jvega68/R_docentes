@@ -1,0 +1,69 @@
+---
+title: "Ejercicios Práctica R"
+author: "Jorge de la Vega"
+date: "Enero 28, 2023"
+output:
+  pdf_document: default
+  html_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Ejercicios.
+
+1. Calcular $11^2, 111^2, 1111^2$ y notar el patrón en la sucesión de los resultados. Calcular ahora $11111111^2$. Para ver todos los dígitos,poner el comando `options(digits=18)` antes de hacer el cálculo. Finalmente calcular $111111111^2$. ¿Se obtuvo la respuesta correcta? ¿Porqué sí o porqué no?
+
+2. Consideren en dataframe ya incluído en `R` con el nombre `chickwts`.
+    a. Crear un subconjunto del dataframe llamado `chickwts300p` que contiene toda la información de los pollos que pesan más de 300gr.
+    b. Crear otro subconjunto llamado `chickwtsLinseed` que contiene todas las observaciones para las cuales los pollos fueron alimentados con linseed.
+    c. Calcular el peso promedio de los pollos que fueron alimentados con linseed.
+    d. Calcular el peso promedio de los pollos que no fueron alimentados con linseed.
+  
+3. Consideren el dataframe incluido que se llama `cars`.
+    a. ¿Cuántas observaciones tiene el conjuntos de datos? ¿Cuántas variables? ¿Cuál es el nombre de las variables?
+    b. Encontrar la distancia media de frenado de todas las observaciones para las que la velocidad es 20 millas por hora. 
+    c. Construir una gráfica de dispersión relacionando la distancia a la velocidad. ¿Qué clase de relación se observa?
+    
+4. Obtener los datos _rnf6080.dat_ de [www.statprogr.science/data/rnf6080.dat](www.statprogr.science/data/rnf6080.dat) y ponerlos en un dataframe llamado `rain.df`. Usar la opción `header=FALSE`.
+    a. Desplegar el elemento que está en el renglón 2, columna 4.
+    b. ¿Cuáles son los nombres de las columnas de `rain.df`?
+    c. Desplegar los contenidos de la segunda columna de `rain.df`.
+    d. Cambiar los nombres de las columnas: la primera es "año", la segunda es "mes", la tercera es "dia" y las subsecuentes son los números del 0 al 23 (representando las horas del día).
+    e. Crear una columna llamada "diaria" que sea la suma de las 24 columnas de las horas.
+    f.Hacer un histograma de la caída de lluvia diaria.
+    
+5. Hacer una gráfica de la función 
+  $$ f(x)=\begin{cases} 3x+2 & x \leq 3 \\  2x-0.5x^2 & x > 3\end{cases} $$
+  en el intervalo $[0,6]$.
+
+6. Consideren el conjunto de datos `islands` que ya está en R (para ver detalles usar `?islands`). Explicar qué se hace en cada paso del código siguiente:
+
+```{r, eval = F}
+hist(log(islands,10), breaks ="Scott", axes = F, xlab = "área",
+     main = "Histograma de las áreas\nde masa terrestre")
+axis(1, at = 1:5, labels = 10^(1:5))
+axis(2)
+box()
+```
+    
+  a. Agregar un subtítulo a la gráfica como "Escala-log base 10"
+  b. Modificar el código para incluir la regla de Sturges en lugar de la de Scott. Aquí se requiere usar la función `round()` para asegurar que no se usan muchos dígitos en las etiquetas del eje x. 
+
+7. Un _primo gemelo_ es un par de primos $(x,y)$  tal que $y= x+2$. Construir la lista de primos gemelos que son menores que 1000.
+
+8. Un banco ofrece un certificado de inversión garantizada que paga un interés anual de 4% (compuesto anualmente) si el plazo es de 3 años o mes, o 5% si el plazo es mayor a tres años. Escribir una función que tome una inversión inicial $P$, y un número de años como argumento y que regrese los interéses obtenidos al finalizar el periodo del certificado.
+
+9. Las tasas de interés de las hipotecas pueden depender a veces de si el plazo de la hipoteca es _abierto_ o _cerrado_. Usar la fórmula $R = \frac{Pi}{1-(1+i)^{-n}}$ para crear una función para calcular el pago $R$ de hipoteca mensual, donde $i$ es una tasa de interés (compuesta mensualmente), y $n$ es la longitud del plazo (en meses). La función debe tomar `n,P,open` como argumentos. Si `open==TRUE`, entonces tomar $i = 0.005$. En otro caso tomar $i=0.004$.
+
+10. La ecuación $x^7 + 10000x^6 + 1.06x^5 + 10600x^4 +0.0605x^3 + 605x^2 + 0.0005x -5$ tiene una raíz real positiva. 
+  a. Hacer un gráfica de la función con escalas adecuadas para mostrar la raíz positiva
+  b. Verificar las raíces con la función `uniroot`
+  c. Escribir una función que aplique el método de Newton-Raphson.
+  
+11. Supongan que una persona desea tomar una hipoteca sobre una casa, Quiere saber cuáles son los pagos periódicos que se deben hacer. Si $P$ es el valor de la hipoteca, $i.r$ es la tasa efectiva de interés y $n$ es el plazo de la hipoteca, entonces el pago periodico $R$ está dado por:
+$$ R = \frac{P\cdot i.r}{1-(1+i.r)^{-n}} $$
+  a. Construir una función llamada `pago.hipoteca()` que emplea esta fórmula.
+  b. Calcular los pagos mensuales de la persona, si el monto inicial es de \$100,000, la tasa de interés es de 1%, y el número de periodos de conversión es 300. 
