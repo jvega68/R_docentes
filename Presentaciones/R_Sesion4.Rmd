@@ -24,6 +24,7 @@ Para el ejercicio de hoy se requiere instalar algunos paquetes adicionales:
 #install.packages("httr")
 #install.packages("readxl")
 #install.packages("skimr")
+#install.packages("foreign")
 ```
 
 # 1.Funciones especiales para la transformación de datos. 
@@ -63,10 +64,7 @@ Para graficar la famosa curva normal
 
 ```{r}
 curve(dnorm(x), from=-4, to = 4)
-<<<<<<< HEAD
-=======
 curve(dnorm(x, sd = 2), from =-4, to = 4, col ="red", add = T)
->>>>>>> 6989cad (sesion4 updates)
 ```
 
 Para nuestros ejercicios creamos una matriz artificial de datos
@@ -352,5 +350,19 @@ Si suponemos que el tiempo de espera es una variable exponencial, ¿qué paráme
 lambda <- mean(datos2$mm_esp, na.rm =T)
 hist(datos2$mm_esp,breaks = 20, prob = T)
 curve(dexp(x,rate = 1/lambda), from = 0, to = 60, add = T)
+```
+
+
+### Otros formatos
+
+```{r}
+library(foreign)
+datos <- read.spss("https://jvega68.io/R_docentes/datos/ENFADEA/BD_embarazo_adolescente.sav",
+                   use.value.labels = T,
+                   to.data.frame = T,
+                   trim.factor.names = F,
+                   use.missings = T,
+                   duplicated.value.labels = "condense")
+head(datos)
 ```
 
