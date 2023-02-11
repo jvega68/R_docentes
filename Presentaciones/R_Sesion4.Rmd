@@ -357,12 +357,12 @@ curve(dexp(x,rate = 1/lambda), from = 0, to = 60, add = T)
 
 ```{r}
 library(foreign)
-datos <- read.spss("https://jvega68.io/R_docentes/datos/ENFADEA/BD_embarazo_adolescente.sav",
+datos <- read.spss("https://jvega68.github.io/R_docentes/datos/ENFADEA/BD_embarazo_adolescente.sav",
                    use.value.labels = T,
                    to.data.frame = T,
                    trim.factor.names = F,
                    use.missings = T,
                    duplicated.value.labels = "condense")
-head(datos)
+str(datos)
 ```
 
