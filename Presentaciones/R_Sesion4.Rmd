@@ -63,6 +63,10 @@ Para graficar la famosa curva normal
 
 ```{r}
 curve(dnorm(x), from=-4, to = 4)
+<<<<<<< HEAD
+=======
+curve(dnorm(x, sd = 2), from =-4, to = 4, col ="red", add = T)
+>>>>>>> 6989cad (sesion4 updates)
 ```
 
 Para nuestros ejercicios creamos una matriz artificial de datos
@@ -75,7 +79,11 @@ X
 ```
 
 
+<<<<<<< HEAD
 ## Uso de las funciones `apply`, `lapply`, `tapply`, `mapply` y `sapply`
+=======
+## 2. Uso de las funciones `apply`, `lapply`, `tapply`, `mapply` y `sapply`
+>>>>>>> 6989cad (sesion4 updates)
 
 Estas funciones pueden funcionar a veces como alternativas a los loops.
 
