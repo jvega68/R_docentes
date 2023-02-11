@@ -65,27 +65,21 @@ Para graficar la famosa curva normal
 ```{r}
 curve(dnorm(x), from=-4, to = 4)
 curve(dnorm(x, sd = 2), from =-4, to = 4, col ="red", add = T)
+abline(v=0) # Agrega linea vértical en el origen
 ```
 
 Para nuestros ejercicios creamos una matriz artificial de datos
 
 ```{r}
-# Creammos una matriz artificial
+# Creammos una matriz artificial de 10x10
 X <- rnorm(100)
 dim(X) <- c(10,10) 
 X
 ```
 
-
-<<<<<<< HEAD
-## Uso de las funciones `apply`, `lapply`, `tapply`, `mapply` y `sapply`
-=======
 ## 2. Uso de las funciones `apply`, `lapply`, `tapply`, `mapply` y `sapply`
->>>>>>> 6989cad (sesion4 updates)
 
-Estas funciones pueden funcionar a veces como alternativas a los loops.
-
-La función `apply` permite aplicar otras funciones sobre los renglones o las columnas de una matriz.
+Estas funciones pueden funcionar a veces como alternativas a los loops. La función `apply` permite aplicar otras funciones sobre los renglones o las columnas de una matriz.
 
 Ejemplo: supongan que quieren la media en cada renglón de la matriz `X`
 
@@ -125,10 +119,9 @@ La función `sapply` es similar a `lapply` pero trata de simplificar la salida a
 sapply(lista,max)
 ```
 
-
 La función `tapply` aplica funciones sobre _grupos_ de un dataframe, que se pueden identificar con una variable _etiqueta_: esto es parecido o equivalente a las tables dinámicas de Excel.
 
-Ejemplo: supongamos que cada uno de los renglones corresponde a datos de cuatro países.
+Ejemplo: supongamos que cada uno de los renglones corresponde a datos de cuatro países. Aquí llamamos a `X$V1` con signo de pesos porque `X` ya es un data frame y su primera columna es la variables `V1`. Aunque también podemos seguirlo llamando como `X[,1]`.
 
 ```{r}
 paises <- c("China", "China", "EUA", "EUA", "EUA", "EUA", "Mexico", "Mexico", "Mexico", "Cuba")
@@ -143,7 +136,7 @@ Podemos usar dos variables o las que sean necesarias para hacer cálculos por gr
 
 ```{r}
 sexo <- c(rep("H",5),rep("M",5))
-tapply(X$V2,list(paises,sexo),sum)
+tapply(X$V2, list(paises, sexo), sum) # crea una tabla de contingencia en las dos variables: pais y sexo
 ```
 
 La función `mapply`es como un `apply` multivariado. Su propósito es hacer las operaciones sobre una lista múltiple o sobre varios vectores
