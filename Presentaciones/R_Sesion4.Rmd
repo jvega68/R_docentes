@@ -20,6 +20,9 @@ En la sesión de hoy cubriremos los siguientes temas:
 Para el ejercicio de hoy se requiere instalar algunos paquetes adicionales:
 
 ```{r}
+# Para instalar los paquetes, descomentar las líneas siguientes y volver a comentar después de la 
+# instalación:
+
 #install.packages("readr")
 #install.packages("httr")
 #install.packages("readxl")
@@ -36,6 +39,7 @@ En R se pueden generar muestras de muchas distribuciones de probabilidad. Las fu
 - **rNOMBREDIST**: para generar números aleatorios de la distribución NOMBREDIST
 - **qNOMBREDIST**: para generar cuantiles de la distribución
 - **dNOMBREDIST**: para generar valores de la función de densidad o de masa de probabilidad. 
+- **pNOMBREDIST**: para generar valores de la función de distribucion $F(x)$
 
 NOMBREDIST puede ser cualquiera de las muchas distribuciones:
 
@@ -50,42 +54,52 @@ NOMBREDIST puede ser cualquiera de las muchas distribuciones:
 Y hay muchas más. Por ejemplo, para la distribución normal:
 
 ```{r}
-x <- rnorm(1000, mean = 2.4, sd = 4) # muestra de N(2.4,16)
+x <- rnorm(n = 1000, mean = 2.4, sd = 4) # muestra de N(2.4,16)
 head(x)
+tail(x,10)
 hist(x)
 mean(x)
 sd(x)
 qnorm(0.95) # devuelve el valor de x que acumula 95% de la probabilidad para una N(0,1)
 qnorm(0.95, mean = 2.4, sd = 4)
 dnorm(0.95)  # da el valor de la curva normal N(0,1) en 0.95
+pnorm(1.645)
 ```
 
 Para graficar la famosa curva normal
 
 ```{r}
-curve(dnorm(x), from=-4, to = 4)
+curve(dnorm(x), from = -4, to = 4)
 curve(dnorm(x, sd = 2), from =-4, to = 4, col ="red", add = T)
-abline(v=0) # Agrega linea vértical en el origen
+abline(h=0.2)
+abline(v=0, lty = 3)
+text(1,0.3,"hola")
 ```
 
 Para nuestros ejercicios creamos una matriz artificial de datos
 
 ```{r}
-# Creammos una matriz artificial de 10x10
+# Creamos una matriz artificial
 X <- rnorm(100)
 dim(X) <- c(10,10) 
 X
 ```
 
+
 ## 2. Uso de las funciones `apply`, `lapply`, `tapply`, `mapply` y `sapply`
 
-Estas funciones pueden funcionar a veces como alternativas a los loops. La función `apply` permite aplicar otras funciones sobre los renglones o las columnas de una matriz.
+Estas funciones pueden funcionar a veces como alternativas a los loops.
+
+La función `apply` permite aplicar otras funciones sobre los renglones o las columnas de una matriz.
 
 Ejemplo: supongan que quieren la media en cada renglón de la matriz `X`
 
 ```{r}
 apply(X = X, MARGIN = 1, FUN = mean) # el uno indica que queremos renglones
+mean(X[1,])
 apply(X, 2, sum)                     # obtiene la suma por columnas
+# aplicar una función creada "al vuelo"
+apply(X,1,function(x){sqrt(sum(x^2))})
 ```
 
 También podemos definir nuestras propias funciones. Por ejemplo, si queremos elevar al cuadrado y sumar los valores podemos crear nuestra propia función
@@ -105,6 +119,8 @@ length(lista) <- 10
 for(i in 1:10) lista[[i]] <- X[,i]  # definimos los elementos de la lista
 
 Z <- lapply(lista,max)   # saca el max de cada lista
+Z <- unlist(Z) # convierte la lista a vector.
+Z2 <- lapply(lista,function(x)c(min(x),median(x),max(x)))
 ```
 
 El resultado es una lista, lo podemos convertir a un vector
@@ -117,32 +133,36 @@ La función `sapply` es similar a `lapply` pero trata de simplificar la salida a
 
 ```{r}
 sapply(lista,max)
+Z3 <- sapply(lista, function(x)c(min(x),median(x),max(x)))
 ```
+
 
 La función `tapply` aplica funciones sobre _grupos_ de un dataframe, que se pueden identificar con una variable _etiqueta_: esto es parecido o equivalente a las tables dinámicas de Excel.
 
-Ejemplo: supongamos que cada uno de los renglones corresponde a datos de cuatro países. Aquí llamamos a `X$V1` con signo de pesos porque `X` ya es un data frame y su primera columna es la variables `V1`. Aunque también podemos seguirlo llamando como `X[,1]`.
+Ejemplo: supongamos que cada uno de los renglones corresponde a datos de cuatro países.
 
 ```{r}
 paises <- c("China", "China", "EUA", "EUA", "EUA", "EUA", "Mexico", "Mexico", "Mexico", "Cuba")
-X <- as.data.frame(X)
-U <- tapply(X$V1, paises, sum)
+X <- as.data.frame(X) # convertimos matriz a data frame
+U1 <- tapply(X$V1, paises, sum)
+U2 <- tapply(X[,1], paises, mean)
 
 #Podemos hace una gráfica de barras con estos datos
-barplot(U)
+barplot(U1)
 ```
 
 Podemos usar dos variables o las que sean necesarias para hacer cálculos por grupos
 
 ```{r}
-sexo <- c(rep("H",5),rep("M",5))
-tapply(X$V2, list(paises, sexo), sum) # crea una tabla de contingencia en las dos variables: pais y sexo
+sexo <- c(rep("H",5), rep("M",5))
+tapply(X$V2, list(paises, sexo), sum) # requiere que las variables que particionan esten
+# en una lista.
 ```
 
 La función `mapply`es como un `apply` multivariado. Su propósito es hacer las operaciones sobre una lista múltiple o sobre varios vectores
 
 ```{r}
-mapply(rep, 1:4, 4:1)
+mapply(rep, 1:4, 4:1) #rep(1,4), rep(2,3), rep(3,2), rep(4,1)
 mapply(sum,list(X[,1],X[,2]),1:2) #suma elementos de columna 1 y le agrega 1, suma elementos de columna 2 y agrega 2.
 ```
 
@@ -154,12 +174,31 @@ Leamos archivos simples.
 ```{r}
 kleenex <- read.delim(file = "https://jvega68.github.io/R_docentes/datos/kleenex.txt", header = F)
 plot(kleenex$V1, type = "l")
+kleenx2 <- scan(file = "https://jvega68.github.io/R_docentes/datos/kleenex.txt")
+plot(kleenx2, type = "l", col = "blue", lwd = 5, lty = 4)
+
 ipc <- read.delim(file = "https://jvega68.github.io/R_docentes/datos/ipcbmv1999-2005.txt", sep = ",")
+# convierte el vector de caracteres de texto a fechas
 ipc$fecha <- as.Date(ipc$fecha, format = "%d/%m/%Y")
+# el formato lo pueden consultar en el help de  format.POSIXct.
 plot(ipc$fecha, ipc$ipc, type = "l")
+# lo mismo se puede hacer con:
 with(ipc, plot(fecha,ipc,type = "l", col = "red", lwd= 2))
+
 heart <- read.csv(file = "https://jvega68.github.io/R_docentes/datos/heart_failure_clinical_records_dataset.csv")
+str(heart)
+heart$sex <- factor(heart$sex, 
+                    levels = c(0,1), 
+                    labels = c("Hombres","Mujeres")) 
+heart$diabetes <- factor(heart$diabetes,  
+                         levels = c(0,1), 
+                         labels = c("Sin diabetes","Con diabetes"))
 summary(heart)
+boxplot(heart$age ~ heart$sex, 
+        las = 2, 
+        xlab = "Sexo",
+        ylab = "Edad",
+        main = "Distribución de edad de hombres y mujeres")
 ```
 
 
@@ -186,26 +225,26 @@ GET(url, write_disk(archivo_temporal <- tempfile(fileext = ".xlsx")))
 datos2 <- read_xlsx(archivo_temporal)
 ```
 
-Ejercicio: Calcular el número de casos por país y por continente
+Ejercicio: Calcular el número de casos nuevos por país y por continente
 
 ```{r}
-# Número de casos por país
-tapply(datos2$total_cases, datos2$continent, sum, na.rm = T)
-casos_por_continente <- tapply(datos2$total_cases, datos2$continent, sum, na.rm = T)
+# Número de casos por continente
+tapply(datos2$new_cases, datos2$continent, sum, na.rm = T)
+casos_por_continente <- tapply(datos2$new_cases, datos2$continent, sum, na.rm = T)
 # ordena los casos de mayor a menor para graficar
 y <- casos_por_continente[order(casos_por_continente)]
 barplot(height = y/1e9, # Gráfica de barras
         las = 2, # pone las etiquetas de forma vertical, para facilitar su lectura
         horiz = T, # hace la gráfica de barras horizontales
         cex.names = 0.7, # escala el tamaño de las etiquetas
-        main = "Casos totales de Covid-19 (miles de millones)" )
+        main = "Casos totales de Covid-19\n(miles de millones)" )
 
 # Quitamos los datos globales y sólo consideramos por países
 datos_pais <- datos2[!(datos2$location %in% c("World","High income", "Upper middle income", "Lower middle income",
-                                              "European Union", unique(datos2$continent))),]
+                                              "European Union", unique(datos2$continent))), ]
 
 
-casos_por_pais <- tapply(datos_pais$total_cases, datos_pais$location, sum, na.rm = T)
+casos_por_pais <- tapply(datos_pais$new_cases, datos_pais$location, sum, na.rm = T)
 x <- casos_por_pais[order(casos_por_pais,decreasing = T)]/1e9
 par(oma = c(1,4,1,1)) # modifica los "outer margins"
 barplot(height = x[1:30] , las = 2, cex.names = 0.8, horiz = T)
@@ -219,12 +258,14 @@ head(Z)
 tail(Z)
 ```
 
-Para poder graficar las series de tiempo, necesitamos convertir las fechas qie estan como texto a fechas
+Para poder graficar las series de tiempo, necesitamos convertir las fechas que estan como texto a fechas
 
 ```{r}
 Z <- as.data.frame(tapply(datos2$new_cases, list(datos2$date, datos2$continent), sum, na.rm = T))
-fechas <- as.Date(row.names(Z))
-par(mfrow=c(2,3))
+fechas <- as.Date(row.names(Z)) # crea un vector con las fechas en el formato adecuado de fecha
+# vamos a graficar un arreglo de 2x3=6 gráficas. Las gráficas se llenarán por renglones con mfrow
+par(mfrow=c(2,3)) # par es una función que define parámetros gráficos. 
+# Añadimos una a una las gráficas por continente:
 plot(fechas,Z$Africa,type ="l", main ="Africa")
 plot(fechas,Z$Asia,type ="l", main ="Asia")
 plot(fechas,Z$Europe,type ="l", main ="Europa")
@@ -233,9 +274,10 @@ plot(fechas,Z$Oceania,type ="l", main ="Oceanía")
 plot(fechas,Z$`South America`,type ="l", main ="América del Sur")
 ```
 
-Analicemos la información de los vacunados, para México
+Analicemos la información de los vacunados, para México.
 
 ```{r}
+# Extraemos los datos correspondientes a México.
 mex <- subset(datos2, 
               subset = location == "Mexico", 
               select =c(date,
@@ -245,23 +287,29 @@ mex <- subset(datos2,
                         total_vaccinations_per_hundred,
                         people_vaccinated_per_hundred,
                         people_fully_vaccinated_per_hundred))
-mex$date <- as.Date(mex$date)
+mex$date <- as.Date(mex$date) # cambiamos el formato de las fechas. Antes lo hicimos afuera
 par(mfrow=c(2,3))
-with(mex, plot(date,total_deaths, type ="l", main ="Muertes totales"))
+with(mex, plot(date, total_deaths/1000, type ="l", main ="Muertes totales\n(miles)"))
 with(mex, plot(date,new_deaths, type ="l", main ="Nuevas muertes"))
 with(mex, plot(date,new_vaccinations, type ="l", main ="Nuevos vacunados"))
+# se grafican tres lineas en la misma gráfica
 with(mex, plot(date,total_vaccinations_per_hundred, type ="l", main ="Total vacunados %", lwd =2))
 with(mex, lines(date,people_vaccinated_per_hundred, type ="l",  col = "red", lwd =2))
 with(mex, lines(date,people_fully_vaccinated_per_hundred, type ="l", col  = "green", lwd=2))
+legend("topleft",legend = c("Total","vacunados","comp vacunados"),
+                    col = c("black","red","green"),
+                    lty = rep(1,3), cex = 0.6)
 ```
 
+Se puede encontrar un resumen básico para hacer gráficas en [este documento.](https://dcgerard.github.io/stat234/base_r_cheatsheet.html) 
 
-## Datos reales
+## Otro ejemplo con datos de la ENIGH 2020
 
 En esta sección veremos cómo analizar un conjunto de datos con herramientas de la Estadística descriptiva. Para esto usaremos los microdatos de la Encuesta ENIGH 2020 que publicó el Inegi recientemente. Los detalles de la encuesta se encuentran en el micrositio sigiuente: [Sitio Enigh 2020](https://www.inegi.org.mx/programas/enigh/nc/2020/). Nos concentraremos en las características sociodemográficas de la población.
 
 ```{r}
-library(readr)
+library(readr) # Este paquete lee archivos en formato de texto. Es más rápido que la función de default de R y
+# permite leer datos que están comprimidos.
 url <- "https://www.inegi.org.mx/contenidos/programas/enigh/nc/2020/microdatos/enigh2020_ns_poblacion_csv.zip"
 temp <- tempfile()
 download.file(url, destfile = temp, mode="wb")
@@ -288,7 +336,7 @@ Vamos a concentrarnos en algunas variables para realizar los ejercicios de maner
 Además, agreguemos la variable que corresponde a la entidad de la República, que son los dos primeros dígitos del folio de la vivienda.
 
 ```{r}
-datos2 <- datos[,c("folioviv","edad","sexo","cau_oir","mm_esp")]
+datos2 <- datos[ , c("folioviv", "edad", "sexo", "cau_oir", "mm_esp")]
 datos2$entidad <- substr(datos2$folioviv,1,2) 
 datos2
 ```
@@ -303,8 +351,8 @@ skim(datos2)
 Hagamos un histograma de la edad. ¿Se ve bien?
 
 ```{r}
-table(datos2$edad)
-hist(datos2$edad) 
+table(datos2$edad) # genera tablas de frecuencias de datos discretos.
+hist(datos2$edad, breaks = 60) # breaks determina cuántas marcas de clase hay en el histograma
 ```
 
 Ahora hagamos histogramas para cada una de las entidades de la República
@@ -319,13 +367,17 @@ for(i in 1:20){
 }
 ```
 
-¿Cuál es la media por estado? Calculamos un intervalo de confianza del 95%
+¿Cuál es la media por estado? Calculamos un intervalo de confianza del 95%. Podemos crear una lista o un data frame
 
 ```{r}
 A <- tapply(datos2$edad,datos2$entidad,function(x)
                           c(mean(x) - qnorm(0.975)*sd(x)/sqrt(length(x)),
                             mean(x),
                             mean(x) + qnorm(0.975)*sd(x)/sqrt(length(x))))
+
+# Convierte la lista a un dataframe y pone nombre a las columnas
+A <- t(sapply(A,c))
+colnames(A) <- c("liminf", "media","limsup")
 ```
 
 ¿Qué conclusión se saca para la hipótesis de que la edad media de Aguascalientes es mayor que 32?
