@@ -314,6 +314,17 @@ url <- "https://www.inegi.org.mx/contenidos/programas/enigh/nc/2020/microdatos/e
 temp <- tempfile()
 download.file(url, destfile = temp, mode="wb")
 datos <- read_csv(unzip(temp),show_col_types = F)
+
+# Creamos una variable auxiliar con los nombres de los estados. 
+Entidades <- c("Aguascalientes", "Baja California", "Baja California Sur",
+               "Campeche", "Coahuila de Zaragoza", "Colima", "Chiapas", 
+               "Chihuahua", "Ciudad de México","Durango", "Guanajuato", 
+               "Guerrero", "Hidalgo", "Jalisco", "México", "Michoacán de Ocampo",
+               "Morelos", "Nayarit", "Nuevo León", "Oaxaca", "Puebla", 
+               "Querétaro", "Quintana Roo", "San Luis Potosí", "Sinaloa", 
+               "Sonora", "Tabasco", "Tamaulipas", "Tlaxcala", 
+               "Veracruz de Ignacio de la Llave", "Yucatán",
+               "Zacatecas")
 ```
 
 La descripción de los datos de la base de viviendas se encuentra en el siguiente documento: [Descripción de las Bases de Datos](https://www.inegi.org.mx/contenidos/productos/prod_serv/contenidos/espanol/bvinegi/productos/nueva_estruc/889463901242.pdf)

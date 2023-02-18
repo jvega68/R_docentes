@@ -1,0 +1,241 @@
+---
+title: "Sesión 5"
+author: "Jorge de la Vega"
+date: "11/02/2023"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, comment = NULL)
+options(width = 140)
+```
+
+En esta sesión: 
+
+1. Data wrangling [cheatsheet dplyr](https://dcgerard.github.io/stat234/cheat_sheets/data-transformation-cheatsheet.pdf)
+2. 
+
+## Mannejo de datos con `dplyr`
+
+El paquete `dplyr` es uno de los paquetes más útiles para manejar datos. Permite manipular de manera más intuitiva los datos para exploración y graficación.
+
+Este paquete forma parte de un conjunto de paquetes diseñado para facilitar todo el proceso de análisis interactivo. Este conjunto de paquetes se llama `tidyverse` y entre los más importantes que lo conforman están los siguientes:
+
+- `dplyr`: herramientas para la manipulación de datos.
+- `ggplot2`: generación de gráficas basadas en la gramática de gráficas de Leland Dikinson.
+- `readr`: herramientas para importación de datos.
+- `tidyr`: paquete para la limpieza de datos
+
+Y hay muchos otros. 
+
+Estos paquetes utilizan una nueva estructura de datos, que más bien es una estructura 'mejorada', llamada `tibble` que es como un `data.frame` con esteroides.
+También utilizan la idea de composición entre funciones para encadenar acciones $f \circ g (x) = f(g(x))$, a través del operador magritte: `%>%`.
+
+`dplyr` introduce las siguientes acciones, funciones o verbos:
+- `select()`: selecciona variables (columnas) por nombre
+- `filter()`:  selecciona observaciones (renglones) por valor
+- `arrange()`: reordena observaciones
+- `mutate()`: transforma variables a partir de las existentes
+- `summarize()`: colapsa variables a través de funciones sumarias
+
+Estas acciones se combinan con la función `group_by` para considerar operaciones por grupos. 
+
+## MovieLens
+
+LOs datos que usaremos hoy describen calificaciones (ratings) de 5-estrellas, metadatos de películas (año, título, géneros) y datos demográficos de los usuarios de [MovieLens](https://grouplens.org/datasets/movielens/), un servicio de recomendación de películas. La base de datos tiene un poco más de un millón de registrosy los datos fueron colectados entre 1990 y principios del 2000. El archivo `README.txt` tiene más detalles sobre la información. 
+
+Los datos están contenidos en tres archivos: (1) `users.dat.txt`, (2) `movies.dat.txt` y (3) `ratings.dat.txt`.
+
+Hoy haremos un análisis de estos datos, aprovechando para revisar funciones para manipular datos, y como primer paso importaremos las bases de datos en formato `csv` a R para luego proceder a su análisis y ampliar el uso de algunas funciones de R para ese propósito, en particular veremos cómo graficar en `ggplot2`.
+
+## Leer detos de archivos con delimitadores raros
+
+Típicamente la mejor manera de trabajar con archivos de Excel que tienen una estructura de dataframe es guardarlos como archivos de texto separados por comas (`csv`) y leerlos con la función `read.csv`. Si el delimitador no es una coma, se puede usar `read.delim`. Pero en nuestro caso estas opciones no sirven. 
+
+Los archivos usan como delimitador dobles dos puntos, "::" y R no puede separar fácilmente estos datos. Por lo tanto, tenemos que buscar la manera de poder leer el archivo y generar un dataframe para poder comenzar el análisis.
+
+La estrategia es primero leer los archivos por lineas, después romper las líneas en donde están los delimitadores, y después armar el dataframe. Usaremos `readLines` para este propósito
+
+
+```{r}
+pelis <- readLines("https://raw.githubusercontent.com/jvega68/EA3/master/datos/movies.dat.txt")
+
+califs <- readLines("https://raw.githubusercontent.com/jvega68/EA3/master/datos/ratings.dat.txt")
+
+usuarios <- readLines("https://raw.githubusercontent.com/jvega68/EA3/master/datos/users.dat.txt")
+```
+
+Rompemos las lineas en los lugares donde haya "::". Cada linea se convierte en la entrada de una lista:
+
+```{r}
+pelis <- strsplit(x = pelis, fixed = T, split = "::", useBytes = T)
+califs <- strsplit(x = califs, fixed = T, split = ":", useBytes = T)
+usuarios <- strsplit(usuarios, "::", fixed = TRUE, useBytes = T) 
+```
+
+Aquí usamos el parámetro `useBytes = T` porque la codificación del archivo puede hacer que perdamos información, ya que no sabemos cómo están codificados los datos originales. 
+
+Ahora ya podemos convertir a un dataframe
+
+```{r}
+pelis <- data.frame(matrix(unlist(pelis), ncol = 3, byrow = T), stringsAsFactors = F)
+califs <- data.frame(matrix(unlist(califs), ncol = 4, byrow = T), stringsAsFactors = F)
+usuarios <- data.frame(matrix(unlist(usuarios), ncol = 5, byrow = T), stringsAsFactors = F)
+```
+
+Noten que estos dataframes no tienen los nombres de los campos y todas las columnas son de tipo caracter, por lo que los números no son números. Tenemos que arreglar todos estos detalles.
+
+```{r}
+colnames(pelis) <- c("pelicula_id", "titulo", "genero")
+colnames(califs) <- c("usuario_id", "pelicula_id", "rating", "timestamp")
+colnames(usuarios) <- c("usuario_id", "sexo", "edad", "ocupacion", "CP")
+```
+
+Ahora convertimos a los tipos de datos correctos:
+
+```{r}
+# Cambios para pelis:
+pelis$pelicula_id <- as.integer(pelis$pelicula_id) 
+
+# Cambios para califs:
+califs[,-4] <- as.data.frame(apply(califs[,-4], 2, as.integer))
+
+# Cambios para usuarios:
+usuarios$usuario_id <- as.integer(usuarios$usuario_id)
+usuarios$edad <- as.numeric(usuarios$edad)
+usuarios$ocupacion <- as.factor(usuarios$ocupacion)
+usuarios$CP <- as.factor(usuarios$CP)
+```
+
+¡Listo! Tenemos nuestros dataframes por fín! Todo esto se hubiera simplificado mucho si tuviéramos los datos en formato `csv` o con un mejor delimitador. Pero a veces así nos dan los datos. 
+
+Para ver sus estructuras, podemos usar la función `str`:
+
+```{r}
+# Estructuras de los archivos
+str(usuarios)
+str(califs)
+str(pelis)
+```
+
+Otra opción pudo haber sido abrir el archivo en Excel y modificarlo. Pero posiblemente tenemos miles de archivos en esta condición, así que hacerlo manualmente no es una opción. Vale la pena aprender un poco más para resolver problemas de más largo plazo.
+
+## EDA
+
+EDA significa Exploratory Data Analysis, es un término acuñado por John Tukey para referirse al análisis estadístico inicial al que se deben someter los datos que se obtienen para poder identificar  ptrones y características generales de los datos, tendencias, características numéricas, etc. y tener un mayor entendimiento y conocimiento inicial para formular preguntas correctas.
+
+Esta fase también se conoce actualmente como análisis estadístico descriptivo de los datos y tiene las siguientes finalidades:
+
+- Maximizar la visión sobre el conjunto de datos.
+- descubrir estructuras de datos subyacentes
+- identificar las variables que son más relevantes
+- detectar anomalías y valores atípicos
+- probar los supuestos subyacentes de los datos
+- desarrollar modelos adecuados.
+
+La mejor manera de llevar a cabo un análisis exploratorio es hacerlo de *manera interactiva*, junto con el paquete que usamos, e ir anotando las características más relevantes de la información, pero también las acciones que llevamos a cabo para que podamos reproducir nuestro análisis.
+
+
+### Análisis Descriptivo
+
+Para poder hacer el análisis trabajar con tres bloques separados puede no ser muy práctico. Resulta mejor unir los archivos, utilizando el campo que tengan en común como una especie de "llave" para unirlos. La base de usuarios tiene `user_id`, como la base de califs, así que el id del usuario se puede usar para unir las bases, y ya unidas, podemos usar `movie_id` que esta tanto en califs como en pelis. De este modo las tres bases se pueden relacionar:
+
+```{r}
+# Es recomendable entender las opciones de la función merge para entender qué es lo que estamos haciendo
+final <- merge(merge(usuarios,califs), pelis)
+head(final, 20) # muestra los primeros registros
+```
+
+Entonces `final` tiene todos los campos que relacionan los datos demográficos de los usuarios con las películas y sus calificaciones. Podemos comenzar formulando algunas preguntas de interés:
+
+
+1. ¿Qué películas tienen al menos 250 ratings?
+2. ¿Cuál es el rating promedio de una película por sexo y edad para esas películas?
+3. ¿Cuáles películas son más opuestas en rating entre hombres y mujeres?
+4. ¿Qué películas han generado mayor diversidad de calificaciones entre todos los usuarios (son las más "controversiales")?
+5. ¿Cuáles son los géneros que más les gustan a las mujeres? ¿cuáles a los hombres? 
+6. ¿Cómo se relacionan los géneros con las edades?
+7. ¿Qué tipo de género son los que reciben los mejores ratings?
+8. ¿Qué película/peliculas han recibido los ratings más altos? ¿Los más bajos? En cada caso, se puede ver por año.
+9. ¿Hay alguna relación entre los códigos postales y las ocupciones?
+
+¿Qué podemos hacer para contestar a estas preguntas? Justo es parte de lo que se llama "ciencia de datos", y ya tenemos algunos elementos para poder contestar a estas preguntas con lo que sabemos de R.
+
+Trataremos de responder a las preguntas una por una a continuación, y veremos los pasos que tenemos que seguir para responderlas.
+
+### ¿Qué películas tienen más de 2000 ratings?
+
+Cada renglón corresponde a un rating, entonces necesitamos saber qué películas aparecen en más de 250 renglones
+
+```{r}
+Frecuencias <- table(final$titulo)
+A <- Frecuencias[Frecuencias > 2000]
+```
+
+
+### ¿Cuál es el rating promedio de una película por grupos de sexo y edad para esas películas?
+
+Primero separamos las películas que nos interesan
+
+```{r}
+mejor_calificadas <- subset(final,final$titulo %in% names(A))
+head(mejor_calificadas)
+```
+
+
+Podemos usar la función `tapply` que hemos visto antes, parecida a un tabla dinámica en Excel. El resultado lo convertimos a dataframe para poder trabajar como si fueran nuevas bases de datos.
+
+```{r}
+ratings_por_sexo <- as.data.frame(with(mejor_calificadas, tapply(rating, list(titulo, sexo), mean, na.rm=T)))
+ratings_por_sexo
+ratings_por_edad <- as.data.frame(with(mejor_calificadas, tapply(rating, list(titulo, edad), mean, na.rm=T)))
+ratings_por_edad
+ratings_por_sexo_edad <- as.data.frame(with(mejor_calificadas, tapply(rating, list(titulo, edad, sexo), mean, na.rm=T)))
+ratings_por_sexo_edad
+```
+
+### ¿Cuáles películas son más opuestas en rating entre hombres y mujeres?
+
+Una manera de responder es agregar una columna de diferencias al `rating_por_sexo`.
+
+```{r}
+ratings_por_sexo$diferencias <- ratings_por_sexo$F - ratings_por_sexo$M
+```
+
+Para ver cuál es la máxima diferencia, podemos ordenar los registros de acuerdo a los valores de la columna `diferencias`
+
+```{r}
+diferencias <- ratings_por_sexo[order(ratings_por_sexo$diferencias),]
+diferencias
+```
+
+Entonces las películas con mayores discrepancias, son *ET* que le gustó más a las mujeres, y *Terminator 2* que le gustó más a los hombres. 
+
+Una gráfica de este análisis se puede ver como sigue:
+
+```{r}
+barplot(height = diferencias$diferencias,names.arg = substr(rownames(diferencias),1,20), las=2,cex.names = 0.5,
+        main = "Discrepancias entre calificaciones de las películas\ncon más de 2000 ratings") 
+```
+
+### Diversidad de calificaciones entre películas. 
+
+Una manera de medir la controversia en las películas se puede ver a través de que tanto varían las calificaciones para una película. Podemos usar la desviación estándar como una medida de esa variabilidad, y agregarla como una variable más. Esta variable la vamos a agregar en independencia del sexo o la edad de las personas. Ahora consideraremos las 20 películas más controversiales del conjunto de películas disponibles
+
+```{r}
+controversiales <- data.frame(tapply(final$rating,final$titulo,sd, na.rm=T))
+head(controversiales)
+names(controversiales) <- c("sd")
+controversiales$titulo <- rownames(controversiales)  # Agrego los nombres porque se pierden en el camino.
+rownames(controversiales) <- NULL # y los quito como nombres de renglones para que no aparezcan dobles
+controversiales <- controversiales[order(controversiales$sd,decreasing = T),]
+head(controversiales,20) # Las más polémicas
+tail(controversiales,20) # notamos que hay varias películas que no tienen una calificación.
+tail(controversiales[!is.na(controversiales$sd),],20) # las que todos opinan igual
+```
+
+### ¿Cuáles son los géneros que más les gustan a las mujeres? ¿cuáles a los hombres?
+
+Vemos que una película puede estar contada en más de un género. Para hacer una cuenta correcta, deberíamos contar una película en cada uno de los géneros en que se clasifica. Este es un ejemplo del uso de listas para hacer un análisis de datos.

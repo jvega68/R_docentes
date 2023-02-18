@@ -1,0 +1,157 @@
+---
+title: "Manejo de fechas en R"
+author: "Jorge de la Vega"
+date: "7/10/2021"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Introducción
+
+EL manejo de fechas es siempre difícil por la cantidad de formatos que hay disponibles, adicionalmente a las zonas horarias, los años bisiestos, la inclusión de los días, las horas, minutos y sus fracciones, los tiempos para ahorro de energía,etc.
+
+# Funciones básicas para manejo de fechas
+
+- La función básica `as.Date` maneja fechas sin tiempos, y donde el formato se puede especificar con el argumento `format=`. El formato por default es `aaaa-mm-dd` o `aaaa/mm/dd`
+
+```{r error=T}
+(a <- as.Date("2021/10/07"))
+(b <- as.Date("2021/10/01"))
+a-b
+b-a
+a-10
+a+b  # no está definido
+a+10
+Sys.Date() # es la fecha del sistema
+```
+
+El formato se especifica con códigos. La lista completa de códigos es muy larga, y se puede encontrar en el help. Aquí pongo ejemplos:
+
+ |Codigo| Valor          |
+ |------|----------------|
+ |%d    | día del mes    |
+ |%m    | mes            |
+ |%b    | mes (abreviado)|
+ |%B    | mes (completo) |
+ |%y    | año (2 dígitos)|
+ |%Y    | año (4 dígitos)|
+
+Ejemplos de uso: 
+```{r}
+as.Date("1/15/2001", format = "%m/%d/%Y")
+as.Date("abril 26, 2001", format = "%B %d, %Y")
+as.Date("22JUN01",format = "%d%b%y")
+```
+
+Como pasa en Excel, los objetos `Date` son representados como número de días desde **el 1 de enero de 1970** , usando números negativos para fechas anteriores. 
+
+```{r}
+# Convierte una fecha a su representación numérica:
+as.numeric(as.Date("1970/1/1"))
+a <- as.Date("1968/12/06")
+a <- as.numeric(a)
+a
+class(a) <- "Date"  # convierte un número a fecha
+a
+```
+
+Para extraer componentes de una fecha se pueden usar las funciones `weekdays`, `months`,`quarters`.
+
+```{r}
+a <- as.Date("2021/10/07")
+weekdays(a)
+months(a)
+quarters(a)
+```
+
+# Usando el paquete `lubridate`
+
+No es parte de `tidyverse` pero es primo cercano. Aquí se cargarán los paquetes necesarios y un conjunto de datos para practicar
+
+```{r}
+library(tidyverse)
+library(lubridate)
+library(nycflights13) # Carga un archivo de datos para practicar
+```
+
+```{r}
+today() # función en lubridate
+now()   # incluye el tiempo 
+```
+
+Para convertir cadenas en fechas con `lubridate`, se pueden usar las funciones `ymd` o `myd` o `dmy` o etc.  según el orden en que aparezcan en la cadena (hay 6 ordenamientos posibles):
+
+```{r}
+ymd("2021/10/07")
+mdy("octubre 2, 1968")
+dym("31-2021-10")
+ydm("10/10/10")  # hay formatos con los que hay que tener claridad.
+```
+
+Para crear fechas con tiempos, se puede añadir una o más de las letras h, m o s, y una zona de tiempo (son muy difíciles de manejar en general, dependen del sistema operativo).
+
+```{r}
+Sys.timezone() # revisa cuál es la configuración de la computadora utilizada
+ymd_hms("2021/10/07 23:23:23", tz=Sys.timezone())
+```
+
+## Ejemplo práctico
+
+Utilizaré el archivo sobre  [https://datos.cdmx.gob.mx/dataset/capacidad-hospitalaria](capacidad hospitalaria)
+en la ZMVM que es parte del portal de datos abiertos, para mostrar cómo podemos encontrarnos fechas y convertir los datos a series de tiempo 
+
+```{r}
+datos <- read.csv("https://datos.cdmx.gob.mx/dataset/9c45ead6-9016-469a-b6ba-41e3660590cb/resource/c97a1898-5343-4b01-8d76-9f74e5b0d072/download/capacidad_hospitalaria_micrositio.csv")
+str(datos)  # ver la estructura de los datos
+```
+
+Notamos que la primera columna nos da la fecha, ya en el formato adecuado. Si convertimos la variable categórica `Estatus_capacidad_hospitalaria` a numérica, asociando a cada nivel un número (la variable es categorica ordinal), podemos representar la serie de tiempo
+
+Asociamos sin dato al 0, Crítica a -1, Buena a 2 y Media a 1
+```{r}
+unique(datos$Estatus_capacidad_hospitalaria)
+datos <- datos %>%
+         mutate(estatus = recode(Estatus_capacidad_hospitalaria,
+                                 "Crítica" = -1,
+                                 "Buena"    = 2, 
+                                 "Media"    = 1, 
+                                 "Sin Dato" = 0),
+                fecha = as.Date(Fecha))
+
+```
+
+Consideremos los datos de un hospital en paricular, por ejemplo, el Instituto Nacional de Enfermedades Respiratorias (INER).
+
+```{r}
+h1 <- datos %>%
+      dplyr::filter(Nombre_hospital == "INER")
+```
+
+Ahora hacemos una gráfica de la serie de tiempo obtenida
+
+```{r}
+p1 <- h1 %>% 
+      ggplot(mapping = aes(x=fecha,y= estatus)) +
+      geom_line()
+print(p1)
+```
+
+Podemos hacer las gráficas de todos los hospitales
+
+```{r}
+p2 <- datos %>%
+      ggplot(mapping = aes(x=fecha, y = estatus)) +
+      geom_path() +
+      facet_wrap(~ Nombre_hospital) + 
+      theme(legend.position = "none",
+            axis.text.x = element_text(size = 5, color = "red", angle = 45),
+            axis.text.y = element_text(size = 5, color ="blue"),
+            strip.text =  element_text(size = 5))
+print(p2)
+```
+
