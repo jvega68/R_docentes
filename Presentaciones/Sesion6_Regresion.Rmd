@@ -1,0 +1,334 @@
+---
+title: 'Sesión 6: Introducción a modelación'
+author: "Jorge de la Vega"
+date: "2023-02-23"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+En la sesión de hoy veremos:
+
+- Uso de los modelos de regresión, caso particular de los {\sl modelos lineales}. Los modelos     lineales en general abarcan:
+  - modelos de regresión (múltiple)
+  - modelos de diseños experimentales (variables y respuesta discretas)
+  - modelos para el análisis de covarianza (variables continuas y discretas, respuesta continua)
+  - los modelos lineales generalizados (regresión logística, binomial, Poisson)
+- Trataremos de incluir:
+  - Cómo pensar sobre la formación de modelos
+  - media y varianza como funciones.
+  - estimación de parámetros
+  - diagnósticos
+  - inferencia
+
+
+# Regresión lineal simple
+
+Los siguientes son datos del libro: "Understandable Statistics". Los datos son para seguros de autos. Cada renglón es una región geográfica de Suecia.
+```{r}
+library(readxl)
+datos <- read_xls("../R_docentes/datos/slr06.xls")
+head(datos)
+dim(datos)  # dimensión del dataframe
+colnames(datos) <- c("n_claims","total_payment")
+```
+
+## Estadísticas descriptivas
+
+```{r}
+summary(datos)
+cor(datos)
+# Podemos generar una gráfica de la matriz de correlaciones con el paquete corrplot
+library(corrplot)
+corrplot(cor(datos), method = "ellipse")
+
+# gráfica de dispersión de puntos
+plot(datos$n_claims, datos$total_payment)
+abline(lm(total_payment ~ n_claims, data = datos)) # Agrega la línea de mínimos cuadrados
+# regresión no paramétrica
+a <- loess(total_payment ~ n_claims, data = datos) # Regresión no paramétrica
+j <- order(a$x)
+lines(a$x[j], a$fitted[j], col = "red", lwd=3)
+
+# Versión ggplot:
+library(ggplot2)
+ggplot(datos,aes(n_claims, total_payment)) +
+   geom_point(alpha = 0.5) +
+   geom_smooth(method = "lm", se = F) +
+   geom_smooth(method = "loess", se = F, color = "red")
+```
+
+## Ajuste del modelo de regresión
+
+Ya lo hicimos arriba, para la gráfica, pero vamos a ver los detalles. 
+
+```{r}
+mod1 <- lm(total_payment ~ n_claims, data = datos)
+mod1 # devuelve los parámetros estimados
+summary(mod1)  # nos da todos los detalles: estimación, errores estándar, anova. 
+model.matrix(mod1) # muestra la matriz de diseño X correspondiente al modelo
+```
+
+## Datos categóricos: 
+
+```{r}
+library(ggplot2)
+datos2 <- iris[,c(1,5)] # Nos quedamos con las columnas uno y cinco
+ggplot(datos2, aes(Sepal.Length)) +
+       geom_histogram(bins = 10) + 
+       facet_wrap(vars(Species))
+```
+
+Estadísticas por categoría:
+
+```{r}
+# tradicional
+tapply(datos2$Sepal.Length,datos2$Species, summary)
+# tidy
+library(dplyr)
+datos2 %>% 
+       group_by(Species) %>%
+       summarize(media = mean(Sepal.Length),
+                 sd = sd(Sepal.Length),
+                 n = n())
+```
+
+El modelo de regresión en este caso:
+
+```{r}
+# Aquí R está considerando a Species como un factor, aunque es sólo un vector de caracteres. 
+# Se recomienda convertir Species a factor en caso de problemas. 
+mod2 <- lm(Sepal.Length ~ Species, data = datos2)
+summary(mod2)
+X <- model.matrix(mod2)
+head(X)
+# También se puede quitar la ordenada del modelo
+mod2a <- lm(Sepal.Length ~ Species + 0, data = datos2)
+mod2a
+```
+
+Para extraer información del objeto
+
+```{r}
+coefficients(mod1)  # extrae los coeficientes
+fitted(mod1)        # extrae los valores ajustados
+residuals(mod1)     # extrae los residuales del modelo (varios tipos de residual, con opción type = )
+cooks.distance(mod1) # distancias de Cook para diagnósticos
+
+# Un poco más avanzado:
+library(broom)
+tidy(mod1) # regresa las estadísticas en forma de dataframe para programación
+augment(mod1) # un dataframe con varias estadísticas asociadas a cada par de datos. 
+glance(mod1)  # estadísticas generales del modelo
+```
+
+## Predicciones
+
+Usando el primer modelo con variables continuas. Necesitamos crear un arreglo con los valores de los predictores que queremos considerar en la evaluación
+
+```{r}
+ncasos <- data.frame(n_claims=80:100)
+predict(mod1,ncasos)
+# Serìa mejor tener en un sólo arreglo los valores nuevos y sus predicciones
+predicciones <- ncasos %>%
+                mutate(total_payment = predict(mod1,ncasos))
+# Podemos agregar las predicciones a una gráfica
+plot(datos$n_claims, datos$total_payment)
+abline(mod1)
+points(predicciones, col = "red", pch = 19)
+
+# Con ggplot
+datos %>% 
+  ggplot(aes(x = n_claims, y = total_payment)) +
+  geom_point() + 
+  geom_smooth(method = "lm", se = F) +
+  geom_point(
+      data = predicciones,
+      color = "red"
+  )
+```
+
+También podemos obtener los intervalos de confianza para las predicciones.
+Hay dos opciones: una para la estimación de un valor promedio, y la otra para una nueva observación.
+
+```{r}
+A <- as.data.frame(predict(mod1,interval = "confidence",level=0.8))
+B <- as.data.frame(predict(mod1,interval = "prediction",level=0.8))
+# añade intervalos de confianza a la gráfica
+plot(datos$n_claims,datos$total_payment)
+abline(mod1)
+lines(datos$n_claims, A$lwr, col = "red")
+lines(datos$n_claims, A$upr, col = "red")
+lines(datos$n_claims, B$lwr, col =  "green")
+lines(datos$n_claims, B$upr, col = "green")
+
+# Con ggplot:
+datos %>% 
+  ggplot(aes(x = n_claims, y = total_payment)) +
+  geom_point() + 
+  geom_smooth(method = "lm", se = T) +
+  geom_line(aes(y=B$lwr), color = "orange", linetype = "dashed") +
+  geom_line(aes(y=B$upr), color = "orange", linetype = "dashed") 
+```
+
+## Diagnósticos para el modelo
+Hay una serie de gráficas para verificar los supuestos del modelo
+
+```{r}
+par(mfrow = c(2,2)) # crea un arreglo para múltiples gráficas
+plot(mod1) # gráficas de diagnóstico
+```
+
+## Transformación de variables
+
+Consideremos los siguientes datos: es un registro de 7 especies comunes de peces en ventas de mercado. Los datos son de [Kaggle](https://www.kaggle.com/datasets/aungpyaeap/fish-market?resource=download). Seleccionamos un grupo particular, el grupo de lubinas (perch)
+
+```{r}
+Fish <- read.csv("https://raw.githubusercontent.com/jvega68/EA3/master/datos/Fish.csv")
+unique(Fish$Species)
+perch <- Fish %>%
+         filter(Species == "Perch")
+with(perch, plot(Length1,Weight)) # la relación no es lineal 
+with(perch, plot(Length1^3,Weight)) # Vemos que la relación se lineariza con esta transformación
+```
+
+Para hacer la transformación en la regresión, podemos aplicar funciones a los predictores, **pero** en el caso de potencias, requerimos añadir el operador `I()`, porque el símbolo de potencia `^` tiene una función especial, que se verá más adelante
+
+```{r}
+(mod3 <- lm(Weight ~ I(Length1^3), data = perch))
+```
+
+Para realizar la predicción, no es necesario elevar los datos al cubo, eso se hace como parte del modelo: 
+
+```{r}
+nuevos_datos <- data.frame( Length1 = seq(10,40,5))
+datos_predicc <- data.frame(x = nuevos_datos, 
+                            y = predict(mod3, nuevos_datos))
+with(perch, plot(Length1^3,Weight)) # Vemos que la relación se lineariza con esta transformación
+abline(mod3)
+# agrega los puntos rehaciendo la transformación para que los grafique correctamente. 
+points(datos_predicc$Length1^3, datos_predicc$y, col = "blue", pch = 19, cex = 2)
+```
+
+El tratamiento para transformar la respuesta es un poco diferente. Los siguientes datos también son de [Kaggle](https://www.kaggle.com/datasets/madislemsalu/facebook-ad-campaign) y tienen información de tres campañas de marketing. Cada renglón es un anuncio.
+
+Nos fijamos en tres variables:
+- `spent`: gasto en USD
+- `impressions`: las veces que las personas vieron los anuncios
+- `clicks`: las veces que las personas dieron clcks en los anuncios
+
+```{r}
+fb_ad <- read.csv("https://raw.githubusercontent.com/jvega68/EA3/master/datos/fb_adv_data.csv")
+str(fb_ad)
+with(fb_ad, plot(spent, impressions)) # los puntos están muy concentrados en la parte baja de la gráfica
+with(fb_ad, plot(sqrt(spent), sqrt(impressions))) # se aprecian mejor los datos de la parte baja
+# filtramos los casos con 0 impresiones o con 0 gasto
+fb1 <- fb_ad %>% 
+         filter(!((spent < 10) | (impressions == 0)))
+dim(fb1)
+with(fb1, plot(sqrt(spent), sqrt(impressions))) # se aprecian mejor los datos de la parte baja
+
+mod4 <- lm(sqrt(impressions) ~ sqrt(spent), data = fb1)
+mod4
+# prediccion
+nvos_datos <- data.frame(spent = seq(0, 600, 100))
+# la predicción devuelve los valores de la variable predictora en raíz cuadrada, por lo que necesitamos regresar
+# a la escala original
+datos_pred <- data.frame(
+              spent = seq(0, 600, 100),
+              sqrt_impressions = predict(mod4, nvos_datos))
+datos_pred$impressions = datos_pred$sqrt_impressions^2 # agrega los datos en la escala original
+plot(fb1$spent, fb1$impressions)
+points(datos_pred$spent, datos_pred$impressions, col = "orange",pch = 19, cex = 2)
+```
+
+
+# Regresión lineal múltiple
+
+Revisaremos algunos puntos importantes en el análisis de regresión lineal múltiple, particularmente las diferencias de RLM con RLS. Muchas de las cosas que revisamos en RLS se aplican directamente en RLM.
+
+## Especificación de modelos en R en RLM
+
+A continuación se muestra notación de modelos multivariados. 
+
+- `y ~ x`                 $y=b_0+b_1x$                 Modelo de regresión lineal simple
+- `y ~ -1 + x`            $y= b_1x$                    Modelo sin ordenada al origen 
+- `y ~ x + I(x^2)`        $y=b_0 + b_1x+b_2x^2$        Modelo polinomial.
+- `y ~ x1 + x2`           $y = b_0 + b_1x_1 + b_2x_2$  Modelo de primer orden sin interacción. 
+- `y ~ x1:x2`             $y = b_0 + b_1x_1x_2$        Modelo de interacción de  primer orden 
+- `y ~ x1*x2`             $y = b_0 + b_1x_1 + b_2x_2 + b_3x_1x_2$ Modelo de primer orden completo. Un modelo equivalente es: - `y ~ x1 + x2 + x1:x2` 
+- `y ~ (x1 + x2 + x3)^2`  $y = b_0 + b_1x_1 + b_2x_2 + b_3x_3 +b_4x_1x_2 +b_5x_2x_3 +b_6x_1x_3$  Interacciones dobles
+
+
+Consideremos el siguiente ejemplo con el archivo de `Fish`
+
+```{r}
+Bream <- subset(Fish, Species == "Bream", select = -Species) # otra forma de tomar subconjuntos de datos.
+mod5 <- lm(Weight ~ Length3 + Height + Width, data = Bream)
+summary(mod5)
+# Podemos aplicar directamente a los datos originales
+lm(Weight ~ Length3 + Height + Width, data = Fish, subset = Species == "Bream")
+lm(Weight ~ Length3 + Height + Width, data = Fish, subset = Species == "Roach")
+```
+
+
+Scatterplot matrix: datos en pares
+
+```{r}
+plot(Fish[,-1], col = factor(Fish$Species))
+
+# Equivalente en ggplot 
+library(GGally)  # Perdón, omití decirles que instalaran este paquete
+Fish %>% 
+  group_by(Species) %>% 
+  ggpairs(aes(color = Species), alpha = 0.4)
+
+# Otro paquete recién descubierto
+library(scatterPlotMatrix)
+Fish$Species <- factor(Fish$Species)
+scatterPlotMatrix(Fish,zAxisDim = "Species")
+```
+
+Gráfica de correlaciones: 
+
+```{r}
+corrplot(cor(Fish[,-1]), method = "ellipse", order = "hclust")
+```
+
+Para realizar selección de modelos de manera automática
+
+```{r}
+library(MASS) # No requiere instalación, es de los paquetes básicos que se instalan junto con R
+mod5 <- lm(Weight ~ (Length3 + Height + Width)^3, data = Bream)
+mod5
+mod6 <- stepAIC(mod5,                      # modelo inicial
+                scope = list(lower = ~1),  # se puede dar un modelo upper y un lower
+                direction = "both" )       # foward o backward
+```
+
+Comparación de modelos (siempre que estén anidados)
+
+```{r}
+anova(mod5, mod6)
+```
+
+Transformación de Box-Cox: Determina la transformación optima de la variable de respuesta a normalidad. 
+
+```{r}
+boxcox(mod5)
+```
+
+### Referencias
+
+Buenas referencias para modelos lineales hay muchas, dentro de ellas: 
+
+- John Fox. _Applied Regression Analysis and Generalized Linear Models_, 3rd. Ed. Sage, 2016.
+- John Fox & Sandford Weisberg. _An R Companion to Applied Regression_, 2nd. Ed. Sage, 2011. Este libro tiene su propio paquete: `car` (companion to applied regression)
+- W. N. Venables & B. D. Ripley. _Modern Applied Statistics with S_, 4th. Ed. Springer, 2002. Este libro es la base del paquete `MASS`
+
+
+
