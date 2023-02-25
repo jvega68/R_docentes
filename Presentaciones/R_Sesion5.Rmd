@@ -17,7 +17,7 @@ En esta sesión:
 1. Data wrangling [cheatsheet dplyr](https://dcgerard.github.io/stat234/cheat_sheets/data-transformation-cheatsheet.pdf)
 2. 
 
-## Mannejo de datos con `dplyr`
+## Manejo de datos con `dplyr`
 
 El paquete `dplyr` es uno de los paquetes más útiles para manejar datos. Permite manipular de manera más intuitiva los datos para exploración y graficación.
 
